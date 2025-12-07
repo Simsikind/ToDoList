@@ -4,10 +4,15 @@ from datetime import date, datetime
 class UserCreate(BaseModel):
     username: str
     password: str
+    creation_password: str
 
 class UserLogin(BaseModel):
     username: str
     password: str
+
+class UserUpdatePassword(BaseModel):
+    old_password: str
+    new_password: str
 
 class UserOut(BaseModel):
     id: int
@@ -18,6 +23,7 @@ class UserOut(BaseModel):
 
 class TodoBase(BaseModel):
     title: str
+    description: str | None = None
     priority: int = 0
     due_date: date | None = None
     remind_from: datetime | None = None

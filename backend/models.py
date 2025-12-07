@@ -19,6 +19,7 @@ class Todo(Base):
     priority = Column(Integer, default=0)
     due_date = Column(Date, nullable=True)
     remind_from = Column(DateTime, nullable=True)
+    description = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)

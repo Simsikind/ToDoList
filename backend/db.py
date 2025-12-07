@@ -1,13 +1,16 @@
 import configparser
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 config = configparser.ConfigParser()
-config.read("config.cfg")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = os.path.join(BASE_DIR, "config.cfg")
+config.read(CONFIG_PATH)
 
 DB_HOST = config["database"]["host"]
 DB_PORT = config["database"]["port"]
-DB_NAME = config["database"]["tododbname"]
+DB_NAME = config["database"]["dbname"]
 DB_USER = config["database"]["user"]
 DB_PASS = config["database"]["password"]
 

@@ -1,0 +1,27 @@
+; ToDoList Konfigurationsdatei
+; PostgreSQL Verbindungsdaten
+; Hinweis: Speichere diese Datei sicher. Verwende nach Möglichkeit
+; Umgebungsvariablen für Passwörter anstatt Klartext in Dateien.
+
+[database]
+; Hostname oder IP des Postgres-Servers
+host = localhost
+; Port (Standard: 5432)
+port = 5432
+; Name der Datenbank
+dbname = todo_db
+; Datenbank-Benutzer
+user = todo_user
+; Passwort
+password = YOUR_DB_PASSWORD
+; SSL Mode: disable | allow | prefer | require | verify-ca | verify-full
+sslmode = prefer
+
+[printer]
+enable = true
+
+;Name des ECP-POS-Druckers
+prntname = Generic / Text Only
+
+[security]
+creation_password = YOUR_ADMIN_CREATION_PASSWORD

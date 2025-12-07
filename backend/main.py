@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from db import Base, engine
+from db import Base, engine, config
 from models import User, Todo
-from schemas import UserCreate, UserLogin, UserOut, TodoCreate, TodoUpdate, TodoOut
+from schemas import UserCreate, UserLogin, UserOut, TodoCreate, TodoUpdate, TodoOut, UserUpdatePassword
 from auth import (
     hash_password,
     verify_password,
@@ -33,6 +33,11 @@ Base.metadata.create_all(bind=engine)
 # --------------------------
 @app.post("/register", response_model=UserOut)
 def register(user: UserCreate, db: Session = Depends(get_db)):
+    # Verify creation password
+    required_creation_pw = config["security"]["creation_password"]
+    if user.creation_password != required_creation_pw:
+        raise HTTPException(status_code=403, detail="Invalid creation password")
+
     existing = db.query(User).filter(User.username == user.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -58,6 +63,19 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     return {"access_token": token, "token_type": "bearer"}
 
+
+@app.post("/change-password")
+def change_password(
+    pw_data: UserUpdatePassword,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(pw_data.old_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect old password")
+    
+    current_user.password_hash = hash_password(pw_data.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}
 
 
 # --------------------------
@@ -86,6 +104,7 @@ def create_todo(
 ):
     new_todo = Todo(
         title=todo.title,
+        description=todo.description,
         priority=todo.priority,
         due_date=todo.due_date,
         remind_from=todo.remind_from,
