@@ -1,0 +1,15 @@
+; ToDoList Konfigurationsbeispiel
+; PostgreSQL Verbindungsdaten (Beispiel ohne Passwort)
+
+[database]
+host = localhost
+port = 5432
+dbname = todolist_db
+user = todolist_user
+; Passwort: Trage das Passwort nicht in die Beispiel-Datei ein.
+;password = 
+sslmode = prefer
+
+; Hinweise:
+; - Kopiere diese Datei nach `config.cfg` und fülle die sensiblen Werte aus.
+; - Nutze Umgebungsvariablen oder einen Secret-Manager für Passwörter.
