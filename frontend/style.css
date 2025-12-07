@@ -1,0 +1,184 @@
+body {
+    font-family: sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f4f4f9;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+.hidden {
+    display: none;
+}
+
+.container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="date"],
+input[type="datetime-local"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+button.secondary {
+    background-color: #6c757d;
+}
+
+button.secondary:hover {
+    background-color: #545b62;
+}
+
+button.danger {
+    background-color: #dc3545;
+}
+
+button.danger:hover {
+    background-color: #bd2130;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Todo List */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li.todo-item {
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Priority Backgrounds for Open Tasks */
+li.todo-item.priority-high {
+    background-color: #ffe6e6; /* Light Red */
+}
+
+li.todo-item.priority-medium {
+    background-color: #fff9db; /* Light Yellow */
+}
+
+li.todo-item.priority-low {
+    background-color: #e6fff0; /* Light Green */
+}
+
+/* Done State Overrides */
+li.todo-item.done {
+    background-color: #f8f9fa; /* Light Gray */
+    opacity: 0.8;
+}
+
+li.todo-item.done span.title {
+    text-decoration: line-through;
+    color: #888;
+}
+
+.todo-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.priority-badge {
+    font-size: 0.8em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.5); /* Semi-transparent white to blend */
+    margin-right: 10px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Optional: Keep badge colors if needed, or rely on row color */
+.priority-high .priority-badge { color: #a00; }
+.priority-medium .priority-badge { color: #856404; }
+.priority-low .priority-badge { color: #155724; }
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    position: relative;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    right: 15px;
+    top: 10px;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}

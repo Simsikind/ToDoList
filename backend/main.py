@@ -12,8 +12,17 @@ from auth import (
     get_current_user,
 )
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # später kannst du das präziser machen
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Datenbanktabellen erzeugen (falls nicht vorhanden)
 Base.metadata.create_all(bind=engine)
