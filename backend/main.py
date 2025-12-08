@@ -1,5 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+
+from pathlib import Path
 
 from db import Base, engine, config
 from models import User, Todo
@@ -31,7 +34,7 @@ Base.metadata.create_all(bind=engine)
 # --------------------------
 # USER AUTH ROUTES
 # --------------------------
-@app.post("/register", response_model=UserOut)
+@app.post("/api/register", response_model=UserOut)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     # Verify creation password
     required_creation_pw = config["security"]["creation_password"]
@@ -52,7 +55,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-@app.post("/login")
+@app.post("/api/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == form_data.username).first()
 
@@ -64,7 +67,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.post("/change-password")
+@app.post("/api/change-password")
 def change_password(
     pw_data: UserUpdatePassword,
     db: Session = Depends(get_db),
@@ -82,7 +85,7 @@ def change_password(
 # TODO ROUTES (AUTH REQUIRED)
 # --------------------------
 
-@app.get("/todos", response_model=list[TodoOut])
+@app.get("/api/todos", response_model=list[TodoOut])
 def get_todos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -96,7 +99,7 @@ def get_todos(
     return todos
 
 
-@app.post("/todos", response_model=TodoOut)
+@app.post("/api/todos", response_model=TodoOut)
 def create_todo(
     todo: TodoCreate,
     db: Session = Depends(get_db),
@@ -117,7 +120,7 @@ def create_todo(
     return new_todo
 
 
-@app.put("/todos/{todo_id}", response_model=TodoOut)
+@app.put("/api/todos/{todo_id}", response_model=TodoOut)
 def update_todo(
     todo_id: int,
     todo: TodoUpdate,
@@ -141,7 +144,7 @@ def update_todo(
     return existing
 
 
-@app.delete("/todos/{todo_id}")
+@app.delete("/api/todos/{todo_id}")
 def delete_todo(
     todo_id: int,
     db: Session = Depends(get_db),
@@ -159,3 +162,8 @@ def delete_todo(
     db.delete(existing)
     db.commit()
     return {"success": True}
+
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BASE_DIR.parent / "frontend"
+
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
