@@ -5,6 +5,8 @@ const API_URL = window.location.port === '3000'
     ? 'http://localhost:8000/api' 
     : '/api';
 
+console.log("API_URL is set to:", API_URL);
+
 // State
 let token = localStorage.getItem('access_token');
 let allTodos = []; // Store all fetched todos for client-side filtering
