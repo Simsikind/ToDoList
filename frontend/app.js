@@ -1,4 +1,9 @@
-const API_URL = '/api';
+// Determine API URL based on where the frontend is running
+// If running on port 3000 (local dev), point to backend on port 8000
+// Otherwise (production/nginx), use relative path '/api'
+const API_URL = window.location.port === '3000' 
+    ? 'http://localhost:8000/api' 
+    : '/api';
 
 // State
 let token = localStorage.getItem('access_token');
