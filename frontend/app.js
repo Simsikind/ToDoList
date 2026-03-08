@@ -7,6 +7,46 @@ const API_URL = window.location.port === '3000'
 
 console.log("API_URL is set to:", API_URL);
 
+function getClientTimezone() {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+    } catch (_) {
+        return null;
+    }
+}
+
+async function syncTimezone() {
+    const tz = getClientTimezone();
+    if (!tz || !token) return;
+
+    try {
+        await fetch(`${API_URL}/set-timezone`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ timezone: tz })
+        });
+    } catch (_) {
+        // best-effort
+    }
+}
+
+function toDatetimeLocalValue(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return '';
+
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function getLocalYYYYMMDD(d = new Date()) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // State
 let token = localStorage.getItem('access_token');
 let allTodos = []; // Store all fetched todos for client-side filtering
@@ -159,7 +199,7 @@ function checkReminders() {
     }
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayStr = getLocalYYYYMMDD(now); // YYYY-MM-DD (local)
     const alerts = [];
 
     allTodos.forEach(todo => {
@@ -237,6 +277,7 @@ function showLogin() {
 function showApp() {
     authSection.classList.add('hidden');
     appSection.classList.remove('hidden');
+    syncTimezone();
     fetchTodos();
 }
 
@@ -263,11 +304,11 @@ logoutBtn.addEventListener('click', () => {
 // Auth Actions
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const username = loginForm.username.value;
+    const email = loginForm.username.value;
     const password = loginForm.password.value;
 
     const formData = new FormData();
-    formData.append('username', username);
+    formData.append('username', email);
     formData.append('password', password);
 
     try {
@@ -276,7 +317,14 @@ loginForm.addEventListener('submit', async (e) => {
             body: formData
         });
 
-        if (!res.ok) throw new Error('Login failed');
+        if (!res.ok) {
+            let msg = 'Login failed';
+            try {
+                const errData = await res.json();
+                msg = errData.detail || msg;
+            } catch (_) {}
+            throw new Error(msg);
+        }
 
         const data = await res.json();
         token = data.access_token;
@@ -284,22 +332,22 @@ loginForm.addEventListener('submit', async (e) => {
         loginForm.reset();
         showApp();
     } catch (err) {
-        authMessage.textContent = 'Login failed. Check credentials.';
+        authMessage.textContent = err.message || 'Login failed. Check credentials.';
         authMessage.style.color = 'red';
     }
 });
 
 registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const username = registerForm.username.value;
+    const email = registerForm.email.value;
     const password = registerForm.password.value;
-    const creation_password = registerForm.creation_password.value;
+    const timezone = getClientTimezone();
 
     try {
         const res = await fetch(`${API_URL}/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, creation_password })
+            body: JSON.stringify({ email, password, timezone })
         });
 
         if (!res.ok) {
@@ -307,7 +355,7 @@ registerForm.addEventListener('submit', async (e) => {
             throw new Error(errData.detail || 'Registration failed');
         }
 
-        authMessage.textContent = 'Registration successful! Please login.';
+        authMessage.textContent = 'Registration successful! Please check your email to verify your address, then login.';
         authMessage.style.color = 'green';
         registerForm.reset();
         showLoginBtn.click();
@@ -579,6 +627,7 @@ todoForm.addEventListener('submit', async (e) => {
     const priority = parseInt(todoForm.priority.value);
     const dueDate = todoForm.dueDate.value || null;
     const remindFrom = todoForm.remindFrom.value || null;
+    const emailReminderEnabled = !!todoForm.emailReminder?.checked;
 
     const newTodo = {
         title,
@@ -586,6 +635,7 @@ todoForm.addEventListener('submit', async (e) => {
         priority,
         due_date: dueDate,
         remind_from: remindFrom,
+        email_reminder_enabled: emailReminderEnabled,
         done: false
     };
 
@@ -618,6 +668,7 @@ editForm.addEventListener('submit', async (e) => {
     const dueDate = editForm.dueDate.value || null;
     const remindFrom = editForm.remindFrom.value || null;
     const done = editForm.done.checked;
+    const emailReminderEnabled = !!editForm.emailReminder?.checked;
 
     try {
         const res = await fetch(`${API_URL}/todos/${id}`, {
@@ -632,6 +683,7 @@ editForm.addEventListener('submit', async (e) => {
                 priority,
                 due_date: dueDate,
                 remind_from: remindFrom,
+                email_reminder_enabled: emailReminderEnabled,
                 done: done
             })
         });
@@ -670,7 +722,10 @@ deleteTodoBtn.addEventListener('click', async () => {
     }
 });
 
-async function toggleTodo(id, currentDone, currentTitle, currentPriority, currentDueDate, currentRemindFrom, currentDescription) {
+async function toggleTodo(id) {
+    const todo = allTodos.find(t => t.id === id);
+    if (!todo) return;
+
     try {
         const res = await fetch(`${API_URL}/todos/${id}`, {
             method: 'PUT',
@@ -679,12 +734,13 @@ async function toggleTodo(id, currentDone, currentTitle, currentPriority, curren
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                title: currentTitle,
-                description: currentDescription,
-                priority: currentPriority,
-                due_date: currentDueDate,
-                remind_from: currentRemindFrom,
-                done: !currentDone
+                title: todo.title,
+                description: todo.description || null,
+                priority: todo.priority,
+                due_date: todo.due_date || null,
+                remind_from: todo.remind_from || null,
+                email_reminder_enabled: !!todo.email_reminder_enabled,
+                done: !todo.done
             })
         });
 
@@ -712,6 +768,19 @@ async function deleteTodo(id) {
 // Rendering
 function formatDate(dateStr, includeTime = false) {
     if (!dateStr) return '';
+
+    if (includeTime && dateStr.includes('T')) {
+        const d = new Date(dateStr);
+        if (!Number.isNaN(d.getTime())) {
+            return d.toLocaleString(undefined, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    }
     
     // Parse ISO string manually to avoid timezone conversion
     // Format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS...
@@ -741,11 +810,15 @@ function openEditModal(id) {
     editForm.priority.value = todo.priority;
     editForm.dueDate.value = todo.due_date || '';
     editForm.done.checked = todo.done;
+    if (typeof todo.email_reminder_enabled !== 'undefined') {
+        editForm.emailReminder.checked = !!todo.email_reminder_enabled;
+    } else {
+        editForm.emailReminder.checked = false;
+    }
     
     // datetime-local expects YYYY-MM-DDTHH:MM
-    // We use raw string slicing to avoid timezone shifts
     if (todo.remind_from) {
-        editForm.remindFrom.value = todo.remind_from.slice(0, 16);
+        editForm.remindFrom.value = toDatetimeLocalValue(todo.remind_from);
     } else {
         editForm.remindFrom.value = '';
     }
@@ -778,7 +851,7 @@ function renderTodos(todos) {
     todoList.innerHTML = '';
     
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = getLocalYYYYMMDD(now);
 
     todos.forEach(todo => {
         const li = document.createElement('li');
@@ -809,13 +882,13 @@ function renderTodos(todos) {
             <div style="display:flex; align-items:center; flex-wrap: wrap;">
                 <div style="display:flex; align-items:center; width: 100%;">
                     <input type="checkbox" ${todo.done ? 'checked' : ''} 
-                        onchange="toggleTodo(${todo.id}, ${todo.done}, '${todo.title.replace(/'/g, "\\'")}', ${todo.priority}, ${todo.due_date ? `'${todo.due_date}'` : 'null'}, ${todo.remind_from ? `'${todo.remind_from}'` : 'null'}, ${todo.description ? `'${todo.description.replace(/'/g, "\\'").replace(/\n/g, "\\n")}'` : 'null'})">
+                        onchange="toggleTodo(${todo.id})">
                     <span class="priority-badge">${todo.priority}</span>
                     <span class="title" style="margin-left: 10px; font-weight: bold;">${todo.title}</span>
                     ${todo.due_date ? `<small style="margin-left:10px; color:#666;">(Due: ${formatDate(todo.due_date)})</small>` : ''}
                     ${todo.remind_from ? `<small style="margin-left:10px; color:#007bff;">(Remind: ${formatDate(todo.remind_from, true)})</small>` : ''}
                 </div>
-                ${todo.description ? `<div style="width: 100%; margin-left: 30px; margin-top: 5px; color: #555; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px;">${todo.description}</div>` : ''}
+                ${todo.description ? `<div class="todo-desc">${todo.description}</div>` : ''}
             </div>
             <div class="todo-actions">
                 <button class="secondary" onclick="openEditModal(${todo.id})">Edit</button>

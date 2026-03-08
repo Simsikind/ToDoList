@@ -1,27 +1,25 @@
-; ToDoList Konfigurationsdatei
-; PostgreSQL Verbindungsdaten
-; Hinweis: Speichere diese Datei sicher. Verwende nach Möglichkeit
-; Umgebungsvariablen für Passwörter anstatt Klartext in Dateien.
+; Example configuration for ToDoList
+; Copy to config.cfg and adjust values.
+; NOTE: config.cfg is gitignored because it contains secrets.
 
 [database]
-; Hostname oder IP des Postgres-Servers
 host = localhost
-; Port (Standard: 5432)
 port = 5432
-; Name der Datenbank
 dbname = todo_db
-; Datenbank-Benutzer
 user = todo_user
-; Passwort
-password = YOUR_DB_PASSWORD
-; SSL Mode: disable | allow | prefer | require | verify-ca | verify-full
+password = ChangeME!
 sslmode = prefer
+
+[security]
+; JWT signing secret (required). Use a long random string.
+; Alternative: set environment variable TODO_JWT_SECRET
+jwt_secret = ChangeME-Long-Random-Secret
 
 [printer]
 enable = true
-
-;Name des ECP-POS-Druckers
 prntname = Generic / Text Only
 
-[security]
-creation_password = YOUR_ADMIN_CREATION_PASSWORD
+[app]
+base_url = https://todo.example.org
+; Optional: default timezone for new users
+default_timezone = UTC

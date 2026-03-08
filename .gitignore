@@ -1,2 +1,15 @@
 # Ignore local config with secrets
 config.cfg
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenv
+backend/venv/
+.venv/

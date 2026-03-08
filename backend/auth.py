@@ -4,11 +4,32 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+import os
 
-from db import SessionLocal
+from db import SessionLocal, config
 from models import User
 
-SECRET_KEY = "CHANGE_THIS_TO_A_REAL_SECRET"
+
+def _load_jwt_secret() -> str | None:
+    env_secret = os.getenv("TODO_JWT_SECRET")
+    if env_secret:
+        return env_secret
+
+    try:
+        if config.has_section("security") and config["security"].get("jwt_secret"):
+            return config["security"]["jwt_secret"].strip() or None
+    except Exception:
+        pass
+
+    return None
+
+
+SECRET_KEY = _load_jwt_secret()
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT secret not configured. Set env TODO_JWT_SECRET or add [security] jwt_secret in config.cfg"
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -52,7 +73,7 @@ def create_access_token(data: dict, expires_delta: int = None):
 # -------------------------
 # CURRENT USER FUNCTION
 # -------------------------
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
 
 
 def get_current_user(
@@ -61,17 +82,20 @@ def get_current_user(
 ):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        email: str = payload.get("sub")
 
-        if username is None:
+        if email is None:
             raise HTTPException(status_code=401, detail="Invalid authentication token")
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
 
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.email == email).first()
 
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+
+    if not getattr(user, "is_email_verified", False):
+        raise HTTPException(status_code=403, detail="Email not verified")
 
     return user

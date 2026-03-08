@@ -55,6 +55,16 @@ cp ../config.cfg.example ../config.cfg
 nano ../config.cfg
 ```
 
+**Security note (JWT secret):** You must configure a strong JWT signing secret.
+
+- Option A: set environment variable `TODO_JWT_SECRET` for the systemd service.
+- Option B: set `[security] jwt_secret = ...` in `config.cfg`.
+
+**Note (Email login + verification):** Users now register with an email address (no admin creation password). The backend sends a verification email on registration.
+
+- Set `[app] base_url` in `config.cfg` to your public URL (e.g. `https://todo.yourdomain.com`) so verification links are correct behind Cloudflare Tunnel.
+- Ensure your local `mail-service` module is available to the backend process (e.g. via `PYTHONPATH` or installing it into the same venv). The backend imports `mail.send`.
+
 ### Create a Systemd Service
 To keep the backend running in the background, create a service file.
 

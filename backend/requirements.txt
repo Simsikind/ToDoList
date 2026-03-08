@@ -3,5 +3,6 @@ uvicorn
 sqlalchemy
 psycopg[binary]
 python-jose[cryptography]
-passlib[bcrypt]
+passlib[argon2]
+email-validator
 python-dotenv
