@@ -355,7 +355,7 @@ registerForm.addEventListener('submit', async (e) => {
             throw new Error(errData.detail || 'Registration failed');
         }
 
-        authMessage.textContent = 'Registration successful! Please check your email to verify your address, then login.';
+        authMessage.textContent = 'Registration successful! Please check your email to verify your address (the email may be in your spam folder), then login.';
         authMessage.style.color = 'green';
         registerForm.reset();
         showLoginBtn.click();

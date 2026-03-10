@@ -223,6 +223,20 @@ li.todo-item.done span.title {
     cursor: pointer;
 }
 
+.footer-links {
+    text-align: center;
+    color: #666;
+}
+
+.footer-links a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
 /* ------------------
    Mobile adjustments
    ------------------ */
