@@ -69,6 +69,9 @@ def run_migrations():
 		if "timezone" not in columns:
 			conn.execute(text("ALTER TABLE users ADD COLUMN timezone VARCHAR(64)"))
 
+		if "api_token" not in columns:
+			conn.execute(text("ALTER TABLE users ADD COLUMN api_token VARCHAR(255) UNIQUE"))
+
 		# --- todos ---
 		if inspector.has_table("todos"):
 			todo_columns = {col["name"] for col in inspector.get_columns("todos")}

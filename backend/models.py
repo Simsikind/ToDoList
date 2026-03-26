@@ -12,6 +12,7 @@ class User(Base):
     email_verification_token = Column(String, nullable=True, index=True)
     email_verification_expires_at = Column(DateTime, nullable=True)
     timezone = Column(String, nullable=True)
+    api_token = Column(String, unique=True, nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
 
 class Todo(Base):

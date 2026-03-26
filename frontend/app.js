@@ -68,6 +68,16 @@ const changePwModal = document.getElementById('change-pw-modal');
 const closePwModalBtn = document.getElementById('close-pw-modal');
 const changePwForm = document.getElementById('change-pw-form');
 
+const apiTokenBtn = document.getElementById('api-token-btn');
+const apiTokenModal = document.getElementById('api-token-modal');
+const closeApiTokenModalBtn = document.getElementById('close-api-token-modal');
+const apiTokenValue = document.getElementById('api-token-value');
+const mcpUrlValue = document.getElementById('mcp-url-value');
+const copyTokenBtn = document.getElementById('copy-token-btn');
+const copyMcpUrlBtn = document.getElementById('copy-mcp-url-btn');
+const toggleTokenVisibilityBtn = document.getElementById('toggle-token-visibility');
+const regenerateTokenBtn = document.getElementById('regenerate-token-btn');
+
 // Filter Elements
 const filterStatus = document.getElementById('filter-status');
 const filterPriority = document.getElementById('filter-priority');
@@ -179,6 +189,57 @@ function init() {
         }
     });
 
+    // API Token Modal Listeners
+    apiTokenBtn.addEventListener('click', async () => {
+        await openApiTokenModal();
+    });
+
+    closeApiTokenModalBtn.addEventListener('click', () => {
+        apiTokenModal.classList.add('hidden');
+    });
+
+    toggleTokenVisibilityBtn.addEventListener('click', () => {
+        if (apiTokenValue.type === 'password') {
+            apiTokenValue.type = 'text';
+            toggleTokenVisibilityBtn.textContent = 'Verbergen';
+        } else {
+            apiTokenValue.type = 'password';
+            toggleTokenVisibilityBtn.textContent = 'Anzeigen';
+        }
+    });
+
+    copyTokenBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(apiTokenValue.value).then(() => {
+            copyTokenBtn.textContent = 'Kopiert!';
+            setTimeout(() => { copyTokenBtn.textContent = 'Kopieren'; }, 2000);
+        });
+    });
+
+    copyMcpUrlBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(mcpUrlValue.value).then(() => {
+            copyMcpUrlBtn.textContent = 'Kopiert!';
+            setTimeout(() => { copyMcpUrlBtn.textContent = 'Kopieren'; }, 2000);
+        });
+    });
+
+    regenerateTokenBtn.addEventListener('click', async () => {
+        if (!confirm('Einen neuen Token generieren? Bisherige Verbindungen werden dadurch ungültig.')) return;
+        try {
+            const res = await fetch(`${API_URL}/me/token/regenerate`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Fehler beim Generieren');
+            const data = await res.json();
+            apiTokenValue.value = data.api_token;
+            mcpUrlValue.value = buildMcpUrl(data.api_token);
+            apiTokenValue.type = 'password';
+            toggleTokenVisibilityBtn.textContent = 'Anzeigen';
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
     window.addEventListener('click', (e) => {
         if (e.target === todoModal) {
             todoModal.classList.add('hidden');
@@ -188,6 +249,9 @@ function init() {
         }
         if (e.target === changePwModal) {
             changePwModal.classList.add('hidden');
+        }
+        if (e.target === apiTokenModal) {
+            apiTokenModal.classList.add('hidden');
         }
     });
 }
@@ -904,6 +968,32 @@ function updateClock() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     if (clockElement) {
         clockElement.textContent = `${hours}:${minutes}`;
+    }
+}
+
+function buildMcpUrl(apiToken) {
+    const base = window.location.origin.replace('todo.', 'mcp.');
+    return `${base}/mcp?token=${apiToken}`;
+}
+
+async function openApiTokenModal() {
+    apiTokenValue.value = '';
+    mcpUrlValue.value = '';
+    apiTokenValue.type = 'password';
+    toggleTokenVisibilityBtn.textContent = 'Anzeigen';
+    apiTokenModal.classList.remove('hidden');
+
+    try {
+        const res = await fetch(`${API_URL}/me/token`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Fehler beim Laden');
+        const data = await res.json();
+        apiTokenValue.value = data.api_token;
+        mcpUrlValue.value = buildMcpUrl(data.api_token);
+    } catch (err) {
+        alert(err.message);
+        apiTokenModal.classList.add('hidden');
     }
 }
 

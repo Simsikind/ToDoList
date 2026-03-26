@@ -80,6 +80,7 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
+    user = None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -87,13 +88,14 @@ def get_current_user(
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid authentication token")
 
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
+        user = db.query(User).filter(User.email == email).first()
 
-    user = db.query(User).filter(User.email == email).first()
+    except JWTError:
+        # Fall back to API token lookup
+        user = db.query(User).filter(User.api_token == token).first()
 
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
 
     if not getattr(user, "is_email_verified", False):
         raise HTTPException(status_code=403, detail="Email not verified")

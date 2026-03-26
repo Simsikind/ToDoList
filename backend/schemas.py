@@ -23,6 +23,10 @@ class UserOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+class ApiTokenOut(BaseModel):
+    api_token: str
+
 class TodoBase(BaseModel):
     title: str
     description: str | None = None

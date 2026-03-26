@@ -65,6 +65,7 @@
                 <div class="app-toolbar-actions">
                     <button id="open-todo-modal">New Task</button>
                     <button id="change-pw-btn" class="secondary">Change Password</button>
+                    <button id="api-token-btn" class="secondary">API Token</button>
                     <button id="logout-btn" class="secondary">Logout</button>
                 </div>
             </div>
@@ -224,6 +225,41 @@
         </div>
     </div>
 
-    <script src="app.js?v=7"></script>
+    <!-- API Token Modal -->
+    <div id="api-token-modal" class="modal hidden">
+        <div class="modal-content">
+            <span id="close-api-token-modal" class="close">&times;</span>
+            <h2>API Token</h2>
+            <p style="color: #555; font-size: 0.95em;">
+                Mit diesem Token kannst du externe Dienste (z.B. Claude MCP) mit deinem Account verbinden.
+                Behandle es wie ein Passwort.
+            </p>
+            <div class="form-group">
+                <label>Dein API Token</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="password" id="api-token-value" readonly
+                        style="flex: 1; font-family: monospace; background: #f5f5f5;">
+                    <button type="button" id="toggle-token-visibility" class="secondary" style="white-space: nowrap;">Anzeigen</button>
+                    <button type="button" id="copy-token-btn" class="secondary" style="white-space: nowrap;">Kopieren</button>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 16px;">
+                <label>MCP Server URL (für claude.ai)</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="mcp-url-value" readonly
+                        style="flex: 1; font-family: monospace; font-size: 0.85em; background: #f5f5f5;">
+                    <button type="button" id="copy-mcp-url-btn" class="secondary" style="white-space: nowrap;">Kopieren</button>
+                </div>
+            </div>
+            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 16px;">
+                <button type="button" id="regenerate-token-btn" class="danger">Neuen Token generieren</button>
+                <small style="display: block; margin-top: 8px; color: #888;">
+                    Bisherige Verbindungen werden dadurch ungültig.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=8"></script>
 </body>
 </html>

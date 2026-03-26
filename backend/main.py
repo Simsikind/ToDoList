@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 from db import Base, engine, config, run_migrations, SessionLocal
 from models import User, Todo
-from schemas import UserCreate, UserLogin, UserOut, TodoCreate, TodoUpdate, TodoOut, UserUpdatePassword
+from schemas import UserCreate, UserLogin, UserOut, TodoCreate, TodoUpdate, TodoOut, UserUpdatePassword, ApiTokenOut
 from auth import (
     hash_password,
     verify_password,
@@ -458,6 +458,29 @@ def set_timezone(
     current_user.timezone = tz_name
     db.commit()
     return {"timezone": tz_name}
+
+
+@app.get("/api/me/token", response_model=ApiTokenOut)
+def get_api_token(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.api_token:
+        current_user.api_token = secrets.token_urlsafe(32)
+        db.commit()
+        db.refresh(current_user)
+    return {"api_token": current_user.api_token}
+
+
+@app.post("/api/me/token/regenerate", response_model=ApiTokenOut)
+def regenerate_api_token(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    current_user.api_token = secrets.token_urlsafe(32)
+    db.commit()
+    db.refresh(current_user)
+    return {"api_token": current_user.api_token}
 
 
 # --------------------------
