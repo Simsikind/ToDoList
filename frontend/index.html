@@ -22,11 +22,19 @@
     <title>ToDoList</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✅</text></svg>">
 
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" id="theme-color-meta" content="#4338CA">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ToDoList">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
 
-    <link rel="stylesheet" href="theme.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="theme.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -64,7 +72,17 @@
                 </div>
                 <div class="field">
                     <label data-i18n="auth.password">Passwort</label>
-                    <input type="password" name="password" autocomplete="new-password" required>
+                    <div class="input-with-actions">
+                        <input type="password" name="password" autocomplete="new-password" required>
+                        <button type="button" class="btn btn-secondary pw-toggle-btn" data-i18n="settings.show">Anzeigen</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label data-i18n="auth.confirmPassword">Passwort bestätigen</label>
+                    <div class="input-with-actions">
+                        <input type="password" name="confirmPassword" autocomplete="new-password" required>
+                        <button type="button" class="btn btn-secondary pw-toggle-btn" data-i18n="settings.show">Anzeigen</button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block" data-i18n="auth.registerBtn">Registrieren</button>
                 <p class="auth-switch">
@@ -73,7 +91,10 @@
                 </p>
             </form>
 
-            <a class="auth-privacy-link" href="datenschutz.html" data-i18n="footer.privacy">Datenschutz</a>
+            <div class="auth-footer-links">
+                <a class="auth-privacy-link" href="doc" data-i18n="footer.doc">Doku</a>
+                <a class="auth-privacy-link" href="datenschutz.html" data-i18n="footer.privacy">Datenschutz</a>
+            </div>
         </div>
     </div>
 
@@ -123,6 +144,11 @@
                 </div>
             </div>
 
+            <div class="sidebar-group hidden" id="filter-tags-group">
+                <div class="sidebar-label" data-i18n="nav.tags">Tags</div>
+                <div class="chip-group" id="filter-tags"></div>
+            </div>
+
             <div class="sidebar-group">
                 <div class="sidebar-label" data-i18n="nav.dueRange">Fälligkeitszeitraum</div>
                 <div class="field field-compact">
@@ -158,6 +184,7 @@
             </div>
 
             <div class="sidebar-footer">
+                <a href="doc" data-i18n="footer.doc">Doku</a>
                 <a href="datenschutz.html" data-i18n="footer.privacy">Datenschutz</a>
             </div>
         </nav>
@@ -193,6 +220,14 @@
                     <label data-i18n="form.description">Beschreibung</label>
                     <textarea name="description" data-i18n-placeholder="form.descPlaceholder" placeholder="Optionale Details… (max. 200 Zeichen)" maxlength="200"></textarea>
                 </div>
+                <div class="field tag-field">
+                    <label data-i18n="form.tags">Tags</label>
+                    <div class="tag-input" data-tag-input>
+                        <div class="tag-chips"></div>
+                        <input type="text" class="tag-text-input" data-i18n-placeholder="form.tagsPlaceholder" placeholder="Tag eingeben, Enter zum Hinzufügen" autocomplete="off">
+                        <div class="tag-suggestions hidden"></div>
+                    </div>
+                </div>
                 <div class="field-row">
                     <div class="field">
                         <label data-i18n="form.priority">Priorität (0–2)</label>
@@ -206,6 +241,18 @@
                 <div class="field">
                     <label data-i18n="form.remindFrom">Erinnern ab</label>
                     <input type="datetime-local" name="remindFrom">
+                </div>
+                <div class="field">
+                    <label data-i18n="form.recurrence">Wiederholung</label>
+                    <select name="recurrenceRule" class="select recurrence-select" disabled>
+                        <option value="none" data-i18n="recurrence.none">Keine</option>
+                        <option value="daily" data-i18n="recurrence.daily">Täglich</option>
+                        <option value="weekly" data-i18n="recurrence.weekly">Wöchentlich</option>
+                        <option value="monthly" data-i18n="recurrence.monthly">Monatlich</option>
+                        <option value="weekdays" data-i18n="recurrence.weekdays">Bestimmte Wochentage</option>
+                    </select>
+                    <small class="recurrence-hint" data-i18n="form.recurrenceNeedsDueDate">Setze ein Fälligkeitsdatum, um eine Wiederholung zu nutzen.</small>
+                    <div class="weekday-picker hidden"></div>
                 </div>
                 <label class="checkbox-row">
                     <input type="checkbox" name="emailReminder">
@@ -231,6 +278,14 @@
                     <label data-i18n="form.description">Beschreibung</label>
                     <textarea name="description" maxlength="200"></textarea>
                 </div>
+                <div class="field tag-field">
+                    <label data-i18n="form.tags">Tags</label>
+                    <div class="tag-input" data-tag-input>
+                        <div class="tag-chips"></div>
+                        <input type="text" class="tag-text-input" data-i18n-placeholder="form.tagsPlaceholder" placeholder="Tag eingeben, Enter zum Hinzufügen" autocomplete="off">
+                        <div class="tag-suggestions hidden"></div>
+                    </div>
+                </div>
                 <div class="field-row">
                     <div class="field">
                         <label data-i18n="form.priority">Priorität (0–2)</label>
@@ -244,6 +299,18 @@
                 <div class="field">
                     <label data-i18n="form.remindFrom">Erinnern ab</label>
                     <input type="datetime-local" name="remindFrom">
+                </div>
+                <div class="field">
+                    <label data-i18n="form.recurrence">Wiederholung</label>
+                    <select name="recurrenceRule" class="select recurrence-select" disabled>
+                        <option value="none" data-i18n="recurrence.none">Keine</option>
+                        <option value="daily" data-i18n="recurrence.daily">Täglich</option>
+                        <option value="weekly" data-i18n="recurrence.weekly">Wöchentlich</option>
+                        <option value="monthly" data-i18n="recurrence.monthly">Monatlich</option>
+                        <option value="weekdays" data-i18n="recurrence.weekdays">Bestimmte Wochentage</option>
+                    </select>
+                    <small class="recurrence-hint" data-i18n="form.recurrenceNeedsDueDate">Setze ein Fälligkeitsdatum, um eine Wiederholung zu nutzen.</small>
+                    <div class="weekday-picker hidden"></div>
                 </div>
                 <label class="checkbox-row">
                     <input type="checkbox" name="emailReminder">
@@ -300,11 +367,24 @@
                 <form id="change-pw-form">
                     <div class="field">
                         <label data-i18n="settings.oldPassword">Aktuelles Passwort</label>
-                        <input type="password" name="oldPassword" autocomplete="current-password" required>
+                        <div class="input-with-actions">
+                            <input type="password" name="oldPassword" autocomplete="current-password" required>
+                            <button type="button" class="btn btn-secondary pw-toggle-btn" data-i18n="settings.show">Anzeigen</button>
+                        </div>
                     </div>
                     <div class="field">
                         <label data-i18n="settings.newPassword">Neues Passwort</label>
-                        <input type="password" name="newPassword" autocomplete="new-password" required>
+                        <div class="input-with-actions">
+                            <input type="password" name="newPassword" autocomplete="new-password" required>
+                            <button type="button" class="btn btn-secondary pw-toggle-btn" data-i18n="settings.show">Anzeigen</button>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label data-i18n="settings.confirmNewPassword">Neues Passwort bestätigen</label>
+                        <div class="input-with-actions">
+                            <input type="password" name="confirmNewPassword" autocomplete="new-password" required>
+                            <button type="button" class="btn btn-secondary pw-toggle-btn" data-i18n="settings.show">Anzeigen</button>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-secondary" data-i18n="settings.updatePassword">Passwort aktualisieren</button>
                 </form>
@@ -332,10 +412,11 @@
                 <small class="settings-hint" data-i18n="settings.regenerateWarning">Bisherige Verbindungen werden dadurch ungültig.</small>
             </section>
 
+            <a href="admin" id="admin-link" class="btn btn-secondary btn-block hidden" data-i18n="settings.admin">Admin-Dashboard</a>
             <button type="button" id="logout-btn" class="btn btn-ghost btn-block" data-i18n="settings.logout">Abmelden</button>
         </div>
     </div>
 
-    <script type="module" src="app.js?v=1"></script>
+    <script type="module" src="app.js?v=102"></script>
 </body>
 </html>

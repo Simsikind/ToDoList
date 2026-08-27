@@ -23,3 +23,10 @@ prntname = Generic / Text Only
 base_url = https://todo.example.org
 ; Optional: default timezone for new users
 default_timezone = UTC
+; The single account treated as Owner: can grant/revoke Admin status for
+; other users via the /admin dashboard. Not manageable via the UI itself.
+owner_email = owner@example.org
+; Optional, comma-separated: one-time admin bootstrap. On each backend start,
+; these accounts are granted is_admin=true if not already admin. Never
+; revokes - once set, admin status is managed live via /admin by the owner.
+admin_emails = owner@example.org

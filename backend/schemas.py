@@ -27,6 +27,34 @@ class UserOut(BaseModel):
 class ApiTokenOut(BaseModel):
     api_token: str
 
+
+class MeOut(BaseModel):
+    id: int
+    email: str
+    is_email_verified: bool
+    timezone: str | None = None
+    is_admin: bool
+    is_owner: bool
+
+    class Config:
+        from_attributes = True
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    email: str
+    is_email_verified: bool
+    created_at: datetime
+    last_login_at: datetime | None = None
+    todos_open: int
+    todos_done: int
+    is_admin: bool
+    is_owner: bool
+
+
+class AdminSetAdminIn(BaseModel):
+    is_admin: bool
+
 class TodoBase(BaseModel):
     title: str
     description: str | None = None
@@ -35,6 +63,9 @@ class TodoBase(BaseModel):
     remind_from: datetime | None = None
     done: bool = False
     email_reminder_enabled: bool = False
+    tags: list[str] = []
+    recurrence_rule: str = "none"  # none | daily | weekly | monthly | weekdays
+    recurrence_weekdays: list[int] | None = None  # ISO weekday numbers 1=Mon..7=Sun
 
 
 class TodoCreate(TodoBase):
@@ -53,6 +84,7 @@ class TodoOut(TodoBase):
     reminder_email_sent_at: datetime | None = None
     overdue_email_sent_at: datetime | None = None
     remind_timezone: str | None = None
+    parent_todo_id: int | None = None
 
     class Config:
         from_attributes = True   # statt orm_mode=True (Pydantic v2)

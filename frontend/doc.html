@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <script>
+        (function () {
+            try {
+                var p = localStorage.getItem('theme_palette') || 'a';
+                var m = localStorage.getItem('theme_mode') || 'system';
+                var resolved = m === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : m;
+                document.documentElement.setAttribute('data-palette', p);
+                document.documentElement.setAttribute('data-mode', resolved);
+            } catch (e) {}
+        })();
+    </script>
+
+    <title>Dokumentation – ToDoList</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="theme.css?v=2" />
+    <link rel="stylesheet" href="style.css?v=3" />
+    <style>
+        .doc-page { display: flex; justify-content: center; padding: 40px 20px 80px; }
+        .doc-wrap { width: 100%; max-width: 760px; }
+
+        .doc-header { margin-bottom: 32px; }
+        .doc-header .brand { margin-bottom: 18px; }
+        .doc-header h1 { font-size: 2rem; margin-bottom: 8px; }
+        .doc-header p { color: var(--text-muted); font-size: 1rem; line-height: 1.6; margin: 0; }
+
+        .doc-toc {
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+            padding: 18px 20px; margin-bottom: 36px;
+        }
+        .doc-toc h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px; }
+        .doc-toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 24px; }
+        .doc-toc li { margin-bottom: 6px; font-size: 0.88rem; break-inside: avoid; }
+        .doc-toc a { color: var(--text); text-decoration: none; }
+        .doc-toc a:hover { color: var(--accent); }
+
+        .doc-section { margin-bottom: 40px; scroll-margin-top: 20px; }
+        .doc-section h2 {
+            font-size: 1.25rem; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+        }
+        .doc-section h3 { font-size: 1rem; margin: 18px 0 6px; }
+        .doc-section p { color: var(--text); line-height: 1.65; margin: 0 0 12px; font-size: 0.94rem; }
+        .doc-section ul, .doc-section ol { margin: 0 0 12px; padding-left: 22px; }
+        .doc-section li { color: var(--text); line-height: 1.6; font-size: 0.94rem; margin-bottom: 4px; }
+        .doc-section code {
+            font-family: var(--font-mono); font-size: 0.85em; background: var(--surface-alt);
+            padding: 1px 6px; border-radius: 4px;
+        }
+        .doc-note {
+            background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-sm);
+            padding: 10px 14px; font-size: 0.88rem; margin: 12px 0;
+        }
+
+        .doc-footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 8px; }
+        .doc-footer a { color: var(--accent); }
+        .doc-back { display: inline-block; margin-top: 16px; font-size: 0.9rem; color: var(--text-muted); text-decoration: none; }
+        .doc-back:hover { color: var(--text); }
+
+        @media (max-width: 560px) {
+            .doc-toc ol { columns: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-page">
+        <div class="doc-wrap">
+            <header class="doc-header">
+                <div class="brand"><span class="brand-mark">✅</span> <span class="brand-name">ToDoList</span></div>
+                <h1>Dokumentation</h1>
+                <p>Alles, was du zur Nutzung dieser App wissen musst — von der Registrierung bis zur Claude-Integration.</p>
+            </header>
+
+            <nav class="doc-toc">
+                <h2>Inhalt</h2>
+                <ol>
+                    <li><a href="#registrierung">Registrierung &amp; Anmeldung</a></li>
+                    <li><a href="#aufgaben">Aufgaben anlegen &amp; bearbeiten</a></li>
+                    <li><a href="#faelligkeit">Fälligkeit &amp; Erinnerung</a></li>
+                    <li><a href="#tags">Tags</a></li>
+                    <li><a href="#wiederholung">Wiederkehrende Aufgaben</a></li>
+                    <li><a href="#filter">Filter, Suche &amp; Sortierung</a></li>
+                    <li><a href="#export">Export</a></li>
+                    <li><a href="#erscheinungsbild">Erscheinungsbild &amp; Sprache</a></li>
+                    <li><a href="#konto">Konto &amp; Passwort</a></li>
+                    <li><a href="#api">API-Token &amp; Claude MCP</a></li>
+                    <li><a href="#pwa">App installieren</a></li>
+                    <li><a href="#loeschen">Aufgaben löschen</a></li>
+                </ol>
+            </nav>
+
+            <section class="doc-section" id="registrierung">
+                <h2>Registrierung &amp; Anmeldung</h2>
+                <p>Zum Start reicht eine E-Mail-Adresse und ein Passwort. Nach der Registrierung schickt die App eine Bestätigungsmail — erst nach dem Klick auf den Link darin kannst du dich anmelden (Spam-Ordner nicht vergessen). Ohne bestätigte E-Mail-Adresse funktioniert weder die Anmeldung noch der Login über die Claude-Integration.</p>
+                <p>Dein Login-Zustand bleibt im Browser gespeichert (auch nach Neuladen der Seite), bis du dich aktiv über <em>Einstellungen → Abmelden</em> abmeldest.</p>
+            </section>
+
+            <section class="doc-section" id="aufgaben">
+                <h2>Aufgaben anlegen &amp; bearbeiten</h2>
+                <p>Über den Button <strong>„+ Neue Aufgabe“</strong> oben rechts öffnest du das Formular. Pflichtfeld ist nur der Titel (max. 50 Zeichen); die Beschreibung ist optional (max. 200 Zeichen).</p>
+                <p>Die <strong>Priorität</strong> ist eine Zahl von 0 (Niedrig) bis 2 (Hoch) und bestimmt den farbigen Punkt vor dem Titel sowie den Priorität-Filter in der Seitenleiste.</p>
+                <p>Ein Klick auf eine bestehende Aufgabe öffnet sie zum Bearbeiten; die Checkbox links markiert sie direkt als erledigt/offen, ohne das Bearbeiten-Fenster zu öffnen.</p>
+            </section>
+
+            <section class="doc-section" id="faelligkeit">
+                <h2>Fälligkeit &amp; Erinnerung</h2>
+                <p><strong>Fälligkeitsdatum</strong> ist ein einfaches Datum. Ist es überschritten und die Aufgabe noch offen, erscheint sie rot markiert oben im „Achtung nötig“-Banner und mit rotem Rand in der Liste.</p>
+                <p><strong>Erinnern ab</strong> ist ein Datum + Uhrzeit. Sobald dieser Zeitpunkt erreicht ist (und die Aufgabe noch offen ist), erscheint sie ebenfalls im Banner, gelb markiert.</p>
+                <p>Aktivierst du zusätzlich <strong>E-Mail-Erinnerung</strong>, verschickt der Server automatisch eine E-Mail, sobald „Erinnern ab“ erreicht ist, und eine weitere, falls die Aufgabe über das Fälligkeitsdatum hinaus offen bleibt. Beides jeweils einmalig pro Aufgabe.</p>
+            </section>
+
+            <section class="doc-section" id="tags">
+                <h2>Tags</h2>
+                <p>Tags sind frei wählbare Stichwörter zur Kategorisierung, unabhängig von der Priorität — z.B. „Arbeit“, „Privat“, „Projekt X“. Im Formular tippst du einen Begriff und bestätigst mit <code>Enter</code> oder <code>,</code>; bereits verwendete Tags werden als Vorschlag angeboten, sobald du zu tippen beginnst.</p>
+                <p>In der Seitenleiste erscheint automatisch eine Tag-Filterzeile, sobald mindestens eine Aufgabe getaggt ist. Dort lassen sich mehrere Tags gleichzeitig auswählen (Aufgaben mit <em>irgendeinem</em> der ausgewählten Tags werden angezeigt).</p>
+            </section>
+
+            <section class="doc-section" id="wiederholung">
+                <h2>Wiederkehrende Aufgaben</h2>
+                <p>Setze zuerst ein Fälligkeitsdatum — erst dann lässt sich eine Wiederholung wählen: <strong>Täglich</strong>, <strong>Wöchentlich</strong>, <strong>Monatlich</strong> oder <strong>Bestimmte Wochentage</strong> (z.B. nur Montag bis Donnerstag).</p>
+                <p>Hakst du eine wiederkehrende Aufgabe ab, bleibt sie als erledigt in deiner Liste erhalten (Historie), und automatisch entsteht eine neue, offene Aufgabe mit dem nächsten passenden Fälligkeitsdatum. Bei „Monatlich“ wird ein zu hoher Tag (z.B. der 31.) automatisch auf den letzten gültigen Tag des Folgemonats angepasst.</p>
+            </section>
+
+            <section class="doc-section" id="filter">
+                <h2>Filter, Suche &amp; Sortierung</h2>
+                <p>Die Seitenleiste filtert nach Status (Alle/Aktiv/Erledigt), Priorität, Tags und einem Fälligkeitszeitraum (Von/Bis) — alle Filter lassen sich beliebig kombinieren. Das Suchfeld oben in der Seitenleiste durchsucht Titel und Beschreibung aller Aufgaben in Echtzeit.</p>
+                <p>Über „Sortieren nach“ lässt sich zwischen Erstellungsreihenfolge, Priorität (hoch zuerst) und Fälligkeit (früheste zuerst) wechseln. „Filter zurücksetzen“ setzt alles auf den Ausgangszustand zurück.</p>
+            </section>
+
+            <section class="doc-section" id="export">
+                <h2>Export</h2>
+                <p>Die aktuell gefilterte Liste lässt sich exportieren: als druckbare <strong>HTML</strong>-Tabelle oder als schmaler <strong>Bon/Text</strong>-Ausdruck (32 Zeichen breit, gedacht für Kassendrucker). Beide Formate öffnen ein Druckfenster.</p>
+            </section>
+
+            <section class="doc-section" id="erscheinungsbild">
+                <h2>Erscheinungsbild &amp; Sprache</h2>
+                <p>Unter <em>Einstellungen → Erscheinungsbild</em> stehen vier Farbschemata zur Wahl (jeweils mit eigenem Hell- und Dunkelmodus), sowie ein Modus-Schalter (Hell/Dunkel/System — folgt der Betriebssystem-Einstellung). Die Wahl wird lokal in deinem Browser gespeichert.</p>
+                <p>Die Sprache (Deutsch/Englisch) wird beim ersten Besuch automatisch aus deiner Browsersprache erkannt und kann jederzeit manuell umgeschaltet werden.</p>
+            </section>
+
+            <section class="doc-section" id="konto">
+                <h2>Konto &amp; Passwort</h2>
+                <p>Unter <em>Einstellungen → Konto</em> kannst du dein Passwort ändern (aktuelles + neues Passwort erforderlich).</p>
+            </section>
+
+            <section class="doc-section" id="api">
+                <h2>API-Token &amp; Claude MCP</h2>
+                <p>Unter <em>Einstellungen → API-Zugriff</em> findest du deinen persönlichen API-Token sowie eine fertige MCP-Server-URL. Damit lässt sich diese App als Werkzeug in <a href="https://claude.ai" target="_blank" rel="noopener">claude.ai</a> einbinden (Einstellungen → Integrationen → MCP-Server → Hinzufügen). Danach kann Claude in deinem Namen Aufgaben auflisten, anlegen (auch aus Fotos oder E-Mails), bearbeiten und löschen.</p>
+                <div class="doc-note">Der Token ist so sensibel wie ein Passwort. Bei Verdacht auf Missbrauch: „Neuen Token generieren“ — bisherige Verbindungen werden damit sofort ungültig.</div>
+            </section>
+
+            <section class="doc-section" id="pwa">
+                <h2>App installieren</h2>
+                <p>Diese App ist eine Progressive Web App (PWA) und lässt sich wie ein echtes Programm installieren: im Browser meist über ein Install-Symbol in der Adressleiste oder „Zum Startbildschirm hinzufügen“ im Browsermenü (mobil). Installiert startet sie in einem eigenen Fenster ohne Browser-Leiste, und die Oberfläche lädt auch ohne Internetverbindung — deine Aufgaben-Daten selbst benötigen weiterhin eine Verbindung zum Server.</p>
+            </section>
+
+            <section class="doc-section" id="loeschen">
+                <h2>Aufgaben löschen</h2>
+                <p>Eine Aufgabe lässt sich erst löschen, nachdem sie als erledigt markiert wurde — der „Löschen“-Button im Bearbeiten-Fenster ist so lange deaktiviert. Das verhindert versehentliches Löschen offener Aufgaben.</p>
+            </section>
+
+            <footer class="doc-footer">
+                <p>Fragen zu gespeicherten Daten? Siehe <a href="datenschutz.html">Datenschutz</a>.</p>
+                <a class="doc-back" href="/">&larr; Zur App</a>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

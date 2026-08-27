@@ -62,6 +62,18 @@ def _get_or_create_server(api_token: str) -> Server:
                         "due_date": {"type": "string", "description": "ISO-8601 date, e.g. '2026-04-15'."},
                         "remind_from": {"type": "string", "description": "ISO-8601 datetime, e.g. '2026-04-14T09:00:00'."},
                         "email_reminder_enabled": {"type": "boolean", "default": False},
+                        "tags": {"type": "array", "items": {"type": "string"}, "description": "Free-form labels, e.g. ['work', 'urgent']."},
+                        "recurrence_rule": {
+                            "type": "string",
+                            "enum": ["none", "daily", "weekly", "monthly", "weekdays"],
+                            "description": "Repeat rule. 'weekdays' requires recurrence_weekdays. Requires due_date to take effect.",
+                            "default": "none",
+                        },
+                        "recurrence_weekdays": {
+                            "type": "array",
+                            "items": {"type": "integer", "minimum": 1, "maximum": 7},
+                            "description": "Only used when recurrence_rule='weekdays'. ISO weekdays, 1=Monday..7=Sunday, e.g. [1,2,3,4] for Mon-Thu.",
+                        },
                     },
                     "required": ["title"],
                 },
@@ -80,9 +92,17 @@ def _get_or_create_server(api_token: str) -> Server:
                         "remind_from": {"type": "string"},
                         "email_reminder_enabled": {"type": "boolean"},
                         "done": {"type": "boolean"},
+                        "tags": {"type": "array", "items": {"type": "string"}},
+                        "recurrence_rule": {"type": "string", "enum": ["none", "daily", "weekly", "monthly", "weekdays"]},
+                        "recurrence_weekdays": {"type": "array", "items": {"type": "integer", "minimum": 1, "maximum": 7}},
                     },
                     "required": ["todo_id"],
                 },
+            ),
+            types.Tool(
+                name="list_tags",
+                description="List all tag names the current user has used before.",
+                inputSchema={"type": "object", "properties": {}},
             ),
             types.Tool(
                 name="delete_todo",
@@ -111,8 +131,9 @@ def _get_or_create_server(api_token: str) -> Server:
                     "priority": arguments.get("priority", 0),
                     "done": False,
                     "email_reminder_enabled": arguments.get("email_reminder_enabled", False),
+                    "recurrence_rule": arguments.get("recurrence_rule", "none"),
                 }
-                for field in ("description", "due_date", "remind_from"):
+                for field in ("description", "due_date", "remind_from", "tags", "recurrence_weekdays"):
                     if arguments.get(field):
                         payload[field] = arguments[field]
                 resp = await client.post(f"{BASE_URL}/api/todos", json=payload, headers=headers)
@@ -127,7 +148,7 @@ def _get_or_create_server(api_token: str) -> Server:
                 if not existing:
                     return [types.TextContent(type="text", text=f"Todo id={todo_id} not found")]
                 for field in ("title", "description", "priority", "due_date", "remind_from",
-                              "email_reminder_enabled", "done"):
+                              "email_reminder_enabled", "done", "tags", "recurrence_rule", "recurrence_weekdays"):
                     if field in arguments:
                         existing[field] = arguments[field]
                 resp = await client.put(f"{BASE_URL}/api/todos/{todo_id}", json=existing, headers=headers)
@@ -139,6 +160,11 @@ def _get_or_create_server(api_token: str) -> Server:
                 resp = await client.delete(f"{BASE_URL}/api/todos/{todo_id}", headers=headers)
                 resp.raise_for_status()
                 return [types.TextContent(type="text", text=json.dumps({"success": True, "deleted_id": todo_id}))]
+
+            elif name == "list_tags":
+                resp = await client.get(f"{BASE_URL}/api/tags", headers=headers)
+                resp.raise_for_status()
+                return [types.TextContent(type="text", text=json.dumps(resp.json(), ensure_ascii=False))]
 
             else:
                 return [types.TextContent(type="text", text=f"Unknown tool: {name}")]

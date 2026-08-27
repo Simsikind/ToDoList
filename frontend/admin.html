@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <script>
+        (function () {
+            try {
+                var p = localStorage.getItem('theme_palette') || 'a';
+                var m = localStorage.getItem('theme_mode') || 'system';
+                var resolved = m === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : m;
+                document.documentElement.setAttribute('data-palette', p);
+                document.documentElement.setAttribute('data-mode', resolved);
+            } catch (e) {}
+        })();
+    </script>
+
+    <title>Admin – ToDoList</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="theme.css?v=2" />
+    <link rel="stylesheet" href="style.css?v=3" />
+    <link rel="stylesheet" href="admin.css?v=2" />
+</head>
+<body>
+    <div class="admin-page">
+        <div class="admin-wrap">
+            <header class="admin-header">
+                <div class="brand"><span class="brand-mark">✅</span> <span class="brand-name">ToDoList</span></div>
+                <h1 data-i18n="admin.title">Admin-Dashboard</h1>
+                <a class="doc-back" href="/" data-i18n="admin.backToApp">Zurück zur App</a>
+            </header>
+
+            <div id="admin-message" class="admin-message hidden"></div>
+
+            <div class="admin-table-wrap hidden" id="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="admin.colEmail">E-Mail</th>
+                            <th data-i18n="admin.colVerified">Verifiziert</th>
+                            <th data-i18n="admin.colCreated">Registriert am</th>
+                            <th data-i18n="admin.colLastLogin">Letzter Login</th>
+                            <th data-i18n="admin.colOpen">Offen</th>
+                            <th data-i18n="admin.colDone">Erledigt</th>
+                            <th data-i18n="admin.colRole">Rolle</th>
+                            <th data-i18n="admin.colAction">Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="admin.js?v=2"></script>
+</body>
+</html>

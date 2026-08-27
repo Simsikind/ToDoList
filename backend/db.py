@@ -72,6 +72,12 @@ def run_migrations():
 		if "api_token" not in columns:
 			conn.execute(text("ALTER TABLE users ADD COLUMN api_token VARCHAR(255) UNIQUE"))
 
+		if "is_admin" not in columns:
+			conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT FALSE"))
+
+		if "last_login_at" not in columns:
+			conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP"))
+
 		# --- todos ---
 		if inspector.has_table("todos"):
 			todo_columns = {col["name"] for col in inspector.get_columns("todos")}
@@ -99,6 +105,63 @@ def run_migrations():
 						"ALTER TABLE todos ADD COLUMN overdue_email_sent_at TIMESTAMP"
 					)
 				)
+
+			if "recurrence_rule" not in todo_columns:
+				conn.execute(
+					text(
+						"ALTER TABLE todos ADD COLUMN recurrence_rule VARCHAR(16) NOT NULL DEFAULT 'none'"
+					)
+				)
+
+			if "recurrence_weekdays" not in todo_columns:
+				conn.execute(text("ALTER TABLE todos ADD COLUMN recurrence_weekdays VARCHAR(20)"))
+
+			if "parent_todo_id" not in todo_columns:
+				conn.execute(
+					text(
+						"ALTER TABLE todos ADD COLUMN parent_todo_id INTEGER REFERENCES todos(id)"
+					)
+				)
+
+		# --- tags ---
+		if not inspector.has_table("tags"):
+			conn.execute(
+				text(
+					"""
+					CREATE TABLE tags (
+						id SERIAL PRIMARY KEY,
+						user_id INTEGER NOT NULL REFERENCES users(id),
+						name VARCHAR(50) NOT NULL,
+						UNIQUE(user_id, name)
+					)
+					"""
+				)
+			)
+		else:
+			# Base.metadata.create_all() (called before run_migrations()) may have
+			# already created this table from the ORM model on a fresh install,
+			# without the unique constraint if it predates it being added there.
+			existing_unique = {
+				tuple(sorted(uc["column_names"]))
+				for uc in inspector.get_unique_constraints("tags")
+			}
+			if tuple(sorted(["user_id", "name"])) not in existing_unique:
+				conn.execute(
+					text("ALTER TABLE tags ADD CONSTRAINT uq_tags_user_name UNIQUE (user_id, name)")
+				)
+
+		if not inspector.has_table("todo_tags"):
+			conn.execute(
+				text(
+					"""
+					CREATE TABLE todo_tags (
+						todo_id INTEGER NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+						tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+						PRIMARY KEY (todo_id, tag_id)
+					)
+					"""
+				)
+			)
 
 	# Data backfill (needs ORM-ish logic; run outside engine.begin)
 	default_tz = "UTC"
@@ -143,6 +206,20 @@ def run_migrations():
 					"UPDATE todos SET remind_from=:utc_dt, remind_timezone=:tz WHERE id=:id"
 				),
 				{"utc_dt": utc_dt, "tz": tz_name, "id": todo_id},
+			)
+
+		# One-time admin bootstrap from config.cfg: only ever flips false -> true,
+		# never revokes. Once an account is admin, ongoing grants/revokes are
+		# managed live via the /admin UI (owner-only) and stored in the DB.
+		try:
+			raw_admin_emails = config["app"].get("admin_emails", "") if config.has_section("app") else ""
+		except Exception:
+			raw_admin_emails = ""
+		admin_emails = [e.strip().lower() for e in raw_admin_emails.split(",") if e.strip()]
+		if admin_emails:
+			db.execute(
+				text("UPDATE users SET is_admin = TRUE WHERE lower(email) = ANY(:emails) AND is_admin = FALSE"),
+				{"emails": admin_emails},
 			)
 
 		db.commit()

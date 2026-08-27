@@ -1,5 +1,5 @@
-import { PALETTES, getPalette, getMode, setPalette, setMode, initTheme } from './theme.js';
-import { t, getLang, setLang, initI18n } from './i18n.js';
+import { PALETTES, getPalette, getMode, setPalette, setMode, initTheme } from './theme.js?v=2';
+import { t, getLang, setLang, initI18n } from './i18n.js?v=4';
 
 // Determine API URL based on where the frontend is running
 // If running on port 3000 (local dev), point to backend on port 8000
@@ -66,7 +66,8 @@ function formatDate(dateStr, includeTime = false) {
 let token = localStorage.getItem('access_token');
 let allTodos = [];
 let currentFilteredTodos = [];
-const filters = { status: 'all', priority: 'all', dateFrom: '', dateTo: '', sortBy: 'created', search: '' };
+let knownTags = [];
+const filters = { status: 'all', priority: 'all', tags: new Set(), dateFrom: '', dateTo: '', sortBy: 'created', search: '' };
 
 // ---------------- DOM refs ----------------
 const authSection = document.getElementById('auth-section');
@@ -85,6 +86,7 @@ const settingsModal = document.getElementById('settings-modal');
 const closeSettingsModalBtn = document.getElementById('close-settings-modal');
 const logoutBtn = document.getElementById('logout-btn');
 const changePwForm = document.getElementById('change-pw-form');
+const adminLink = document.getElementById('admin-link');
 
 const apiTokenValue = document.getElementById('api-token-value');
 const mcpUrlValue = document.getElementById('mcp-url-value');
@@ -100,6 +102,8 @@ const langSwitch = document.getElementById('lang-switch');
 const searchInput = document.getElementById('search-input');
 const filterStatusGroup = document.getElementById('filter-status');
 const filterPriorityGroup = document.getElementById('filter-priority');
+const filterTagsGroup = document.getElementById('filter-tags');
+const filterTagsSection = document.getElementById('filter-tags-group');
 const filterDateFrom = document.getElementById('filter-date-from');
 const filterDateTo = document.getElementById('filter-date-to');
 const sortBySelect = document.getElementById('sort-by');
@@ -125,12 +129,170 @@ const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 
+// ---------------- Tag input ----------------
+function createTagInput(container) {
+    const chipsEl = container.querySelector('.tag-chips');
+    const textEl = container.querySelector('.tag-text-input');
+    const suggestEl = container.querySelector('.tag-suggestions');
+    let tags = [];
+
+    function render() {
+        chipsEl.innerHTML = '';
+        tags.forEach((tag) => {
+            const chip = document.createElement('span');
+            chip.className = 'tag-chip';
+            const label = document.createElement('span');
+            label.textContent = tag;
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.setAttribute('aria-label', 'remove');
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', () => {
+                tags = tags.filter((t) => t !== tag);
+                render();
+            });
+            chip.appendChild(label);
+            chip.appendChild(removeBtn);
+            chipsEl.appendChild(chip);
+        });
+    }
+
+    function hideSuggestions() {
+        suggestEl.classList.add('hidden');
+        suggestEl.innerHTML = '';
+    }
+
+    function addTag(raw) {
+        const name = raw.trim();
+        if (name && !tags.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+            tags.push(name);
+            render();
+        }
+        textEl.value = '';
+        hideSuggestions();
+    }
+
+    function showSuggestions() {
+        const query = textEl.value.trim().toLowerCase();
+        const matches = knownTags
+            .filter((name) => !tags.some((existing) => existing.toLowerCase() === name.toLowerCase()))
+            .filter((name) => !query || name.toLowerCase().includes(query))
+            .slice(0, 8);
+        if (matches.length === 0) { hideSuggestions(); return; }
+        suggestEl.innerHTML = '';
+        matches.forEach((name) => {
+            const item = document.createElement('div');
+            item.className = 'tag-suggestion';
+            item.textContent = name;
+            item.addEventListener('mousedown', (e) => { e.preventDefault(); addTag(name); });
+            suggestEl.appendChild(item);
+        });
+        suggestEl.classList.remove('hidden');
+    }
+
+    textEl.addEventListener('input', showSuggestions);
+    textEl.addEventListener('focus', showSuggestions);
+    textEl.addEventListener('blur', () => setTimeout(hideSuggestions, 150));
+    textEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addTag(textEl.value);
+        } else if (e.key === 'Backspace' && !textEl.value && tags.length) {
+            tags.pop();
+            render();
+        }
+    });
+
+    return {
+        get: () => tags.slice(),
+        set: (newTags) => { tags = (newTags || []).slice(); render(); },
+        clear: () => { tags = []; render(); textEl.value = ''; hideSuggestions(); },
+    };
+}
+
+// ---------------- Recurrence control ----------------
+function createRecurrenceControl(form) {
+    const dueDateInput = form.dueDate;
+    const select = form.querySelector('.recurrence-select');
+    const hint = form.querySelector('.recurrence-hint');
+    const picker = form.querySelector('.weekday-picker');
+
+    for (let d = 1; d <= 7; d++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'weekday-toggle';
+        btn.dataset.day = String(d);
+        btn.textContent = t(`weekday.short.${d}`);
+        btn.addEventListener('click', () => btn.classList.toggle('active'));
+        picker.appendChild(btn);
+    }
+
+    function refreshEnabledState() {
+        const hasDue = !!dueDateInput.value;
+        select.disabled = !hasDue;
+        hint.classList.toggle('hidden', hasDue);
+        if (!hasDue) {
+            select.value = 'none';
+            picker.classList.add('hidden');
+        }
+    }
+
+    function refreshWeekdayVisibility() {
+        picker.classList.toggle('hidden', select.value !== 'weekdays');
+    }
+
+    dueDateInput.addEventListener('change', refreshEnabledState);
+    select.addEventListener('change', refreshWeekdayVisibility);
+
+    refreshEnabledState();
+    refreshWeekdayVisibility();
+
+    return {
+        getRule: () => select.value,
+        getWeekdays: () => Array.from(picker.querySelectorAll('.weekday-toggle.active')).map((b) => parseInt(b.dataset.day, 10)),
+        set: (rule, weekdays) => {
+            refreshEnabledState();
+            if (dueDateInput.value) {
+                select.value = rule || 'none';
+            }
+            refreshWeekdayVisibility();
+            picker.querySelectorAll('.weekday-toggle').forEach((b) => {
+                b.classList.toggle('active', (weekdays || []).includes(parseInt(b.dataset.day, 10)));
+            });
+        },
+        reset: () => {
+            select.value = 'none';
+            picker.querySelectorAll('.weekday-toggle').forEach((b) => b.classList.remove('active'));
+            refreshEnabledState();
+            refreshWeekdayVisibility();
+        },
+        refreshLabels: () => {
+            picker.querySelectorAll('.weekday-toggle').forEach((b) => {
+                b.textContent = t(`weekday.short.${b.dataset.day}`);
+            });
+        },
+    };
+}
+
+const todoTagInput = createTagInput(todoForm.querySelector('[data-tag-input]'));
+const editTagInput = createTagInput(editForm.querySelector('[data-tag-input]'));
+const todoRecurrence = createRecurrenceControl(todoForm);
+const editRecurrence = createRecurrenceControl(editForm);
+
+async function refreshKnownTags() {
+    try {
+        const res = await fetch(`${API_URL}/tags`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) knownTags = await res.json();
+    } catch (_) { /* best-effort */ }
+}
+
 // ---------------- Init ----------------
 function init() {
     initTheme();
     initI18n();
     buildThemeSwatches();
     syncSettingsUI();
+    registerServiceWorker();
 
     if (token) {
         showApp();
@@ -158,16 +320,26 @@ function init() {
         filters.priority = btn.dataset.value;
         applyFilters();
     });
+    filterTagsGroup.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chip');
+        if (!btn) return;
+        const name = btn.dataset.value;
+        if (filters.tags.has(name)) filters.tags.delete(name);
+        else filters.tags.add(name);
+        btn.classList.toggle('active');
+        applyFilters();
+    });
     filterDateFrom.addEventListener('change', () => { filters.dateFrom = filterDateFrom.value; applyFilters(); });
     filterDateTo.addEventListener('change', () => { filters.dateTo = filterDateTo.value; applyFilters(); });
     sortBySelect.addEventListener('change', () => { filters.sortBy = sortBySelect.value; applyFilters(); });
 
     clearFiltersBtn.addEventListener('click', () => {
         filters.status = 'all'; filters.priority = 'all'; filters.dateFrom = ''; filters.dateTo = '';
-        filters.sortBy = 'created'; filters.search = '';
+        filters.sortBy = 'created'; filters.search = ''; filters.tags.clear();
         searchInput.value = '';
         setActiveChip(filterStatusGroup, filterStatusGroup.querySelector('[data-value="all"]'));
         setActiveChip(filterPriorityGroup, filterPriorityGroup.querySelector('[data-value="all"]'));
+        rebuildTagFilterChips();
         filterDateFrom.value = ''; filterDateTo.value = ''; sortBySelect.value = 'created';
         applyFilters();
     });
@@ -182,6 +354,16 @@ function init() {
     openModalBtn.addEventListener('click', () => { todoModal.classList.remove('hidden'); });
     closeModalBtn.addEventListener('click', () => { todoModal.classList.add('hidden'); });
     closeEditModalBtn.addEventListener('click', () => { editModal.classList.add('hidden'); });
+
+    // Password show/hide toggles (register + change-password forms)
+    document.querySelectorAll('.pw-toggle-btn').forEach((btn) => {
+        const input = btn.previousElementSibling;
+        btn.addEventListener('click', () => {
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.textContent = show ? t('settings.hide') : t('settings.show');
+        });
+    });
 
     // Settings modal
     settingsBtn.addEventListener('click', () => { syncSettingsUI(); settingsModal.classList.remove('hidden'); openApiTokenSection(); });
@@ -198,6 +380,10 @@ function init() {
         e.preventDefault();
         const oldPassword = changePwForm.oldPassword.value;
         const newPassword = changePwForm.newPassword.value;
+        if (newPassword !== changePwForm.confirmNewPassword.value) {
+            alert(t('error.passwordMismatch'));
+            return;
+        }
         try {
             const res = await fetch(`${API_URL}/change-password`, {
                 method: 'POST',
@@ -210,6 +396,7 @@ function init() {
             }
             alert(t('settings.passwordUpdated'));
             changePwForm.reset();
+            resetPwToggles(changePwForm);
         } catch (err) {
             alert(err.message);
         }
@@ -281,6 +468,8 @@ function init() {
     document.addEventListener('langchange', () => {
         applyFilters();
         checkReminders();
+        todoRecurrence.refreshLabels();
+        editRecurrence.refreshLabels();
     });
 
     window.addEventListener('click', (e) => {
@@ -290,8 +479,36 @@ function init() {
     });
 }
 
+function resetPwToggles(form) {
+    form.querySelectorAll('.pw-toggle-btn').forEach((btn) => {
+        const input = btn.previousElementSibling;
+        input.type = 'password';
+        btn.textContent = t('settings.show');
+    });
+}
+
 function setActiveChip(group, btn) {
     group.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === btn));
+}
+
+function rebuildTagFilterChips() {
+    const allTagNames = new Set();
+    allTodos.forEach((t) => (t.tags || []).forEach((name) => allTagNames.add(name)));
+
+    // Drop selected tags that no longer exist on any todo
+    filters.tags.forEach((name) => { if (!allTagNames.has(name)) filters.tags.delete(name); });
+
+    filterTagsSection.classList.toggle('hidden', allTagNames.size === 0);
+    filterTagsGroup.innerHTML = '';
+    Array.from(allTagNames).sort((a, b) => a.localeCompare(b)).forEach((name) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip';
+        btn.classList.toggle('active', filters.tags.has(name));
+        btn.textContent = name;
+        btn.dataset.value = name;
+        filterTagsGroup.appendChild(btn);
+    });
 }
 
 function openSidebar() { sidebar.classList.add('open'); sidebarBackdrop.classList.remove('hidden'); }
@@ -310,6 +527,24 @@ function syncSettingsUI() {
     themeSwatches.querySelectorAll('.swatch-btn').forEach((b) => b.classList.toggle('active', b.dataset.palette === palette));
     modeSwitch.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.value === mode));
     langSwitch.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.value === lang));
+    updateThemeColorMeta();
+}
+
+function updateThemeColorMeta() {
+    const meta = document.getElementById('theme-color-meta');
+    if (!meta) return;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    if (accent) meta.setAttribute('content', accent);
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', () => {
+        // Versioned query string so a CDN that caches sw.js by exact URL (like
+        // Cloudflare's default static-asset caching) can't serve a stale copy
+        // under a byte-identical path the browser thinks it already has.
+        navigator.serviceWorker.register('sw.js?v=9').catch((err) => console.error('SW registration failed:', err));
+    });
 }
 
 function checkReminders() {
@@ -366,6 +601,32 @@ function showApp() {
     appShell.classList.remove('hidden');
     syncTimezone();
     fetchTodos();
+    refreshKnownTags();
+    refreshAdminLinkVisibility();
+}
+
+async function refreshAdminLinkVisibility() {
+    try {
+        const res = await fetch(`${API_URL}/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) { adminLink.classList.add('hidden'); return; }
+        const me = await res.json();
+        adminLink.classList.toggle('hidden', !me.is_admin);
+    } catch (_) {
+        adminLink.classList.add('hidden');
+    }
+}
+
+// Offers to save the login (email + password) in the browser's password
+// manager, so the browser's own "save password?" prompt appears even though
+// login goes through fetch() instead of a native form submission. Chrome/Edge
+// support the Credential Management API used here; other browsers no-op
+// (their built-in heuristic-based save prompt may still fire on its own).
+async function offerToSaveLoginCredential(email, password) {
+    if (!email || !password || typeof PasswordCredential === 'undefined' || !navigator.credentials?.store) return;
+    try {
+        const cred = new PasswordCredential({ id: email, password, name: email });
+        await navigator.credentials.store(cred);
+    } catch (_) { /* best-effort */ }
 }
 
 showRegisterBtn.addEventListener('click', (e) => {
@@ -402,6 +663,7 @@ loginForm.addEventListener('submit', async (e) => {
         const data = await res.json();
         token = data.access_token;
         localStorage.setItem('access_token', token);
+        offerToSaveLoginCredential(email, password);
         loginForm.reset();
         showApp();
     } catch (err) {
@@ -416,6 +678,12 @@ registerForm.addEventListener('submit', async (e) => {
     const password = registerForm.password.value;
     const timezone = getClientTimezone();
 
+    if (password !== registerForm.confirmPassword.value) {
+        authMessage.textContent = t('error.passwordMismatch');
+        authMessage.style.color = 'var(--danger)';
+        return;
+    }
+
     try {
         const res = await fetch(`${API_URL}/register`, {
             method: 'POST',
@@ -426,10 +694,13 @@ registerForm.addEventListener('submit', async (e) => {
             const errData = await res.json();
             throw new Error(errData.detail || t('auth.registerFailed'));
         }
+        offerToSaveLoginCredential(email, password);
+        registerForm.reset();
+        resetPwToggles(registerForm);
+        registerForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
         authMessage.textContent = t('auth.registerSuccess');
         authMessage.style.color = 'var(--success)';
-        registerForm.reset();
-        showLoginBtn.click();
     } catch (err) {
         authMessage.textContent = err.message;
         authMessage.style.color = 'var(--danger)';
@@ -442,6 +713,7 @@ async function fetchTodos() {
         const res = await fetch(`${API_URL}/todos`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.status === 401) { logoutBtn.click(); return; }
         allTodos = await res.json();
+        rebuildTagFilterChips();
         applyFilters();
         checkReminders();
     } catch (err) {
@@ -450,13 +722,15 @@ async function fetchTodos() {
 }
 
 function applyFilters() {
-    const { status, priority, dateFrom, dateTo, sortBy, search } = filters;
+    const { status, priority, tags, dateFrom, dateTo, sortBy, search } = filters;
     let filtered = [...allTodos];
 
     if (status === 'active') filtered = filtered.filter((t) => !t.done);
     else if (status === 'done') filtered = filtered.filter((t) => t.done);
 
     if (priority !== 'all') filtered = filtered.filter((t) => t.priority === parseInt(priority, 10));
+
+    if (tags.size > 0) filtered = filtered.filter((t) => (t.tags || []).some((name) => tags.has(name)));
 
     if (dateFrom) filtered = filtered.filter((t) => t.due_date && t.due_date >= dateFrom);
     if (dateTo) filtered = filtered.filter((t) => t.due_date && t.due_date <= dateTo);
@@ -522,6 +796,7 @@ function downloadPos(todos) {
         if (todo.due_date) text += `${t('export.posDue')}: ${formatDate(todo.due_date)}\n`;
         const prio = todo.priority === 2 ? t('nav.priority.high') : (todo.priority === 1 ? t('nav.priority.medium') : t('nav.priority.low'));
         text += `${t('export.posPriority')}: ${prio}\n`;
+        if (todo.tags && todo.tags.length) text += `${t('export.posTags')}: ${todo.tags.join(', ')}\n`;
         text += dotted + '\n';
     });
 
@@ -585,6 +860,7 @@ function downloadHtml(todos) {
                     <th>${escapeHtml(t('export.titleCol'))}</th>
                     <th>${escapeHtml(t('export.dueDateCol'))}</th>
                     <th>${escapeHtml(t('export.descriptionCol'))}</th>
+                    <th>${escapeHtml(t('export.tagsCol'))}</th>
                 </tr>
             </thead>
             <tbody>
@@ -602,6 +878,7 @@ function downloadHtml(todos) {
                 <td>${escapeHtml(todo.title)}</td>
                 <td>${todo.due_date ? escapeHtml(formatDate(todo.due_date)) : '-'}</td>
                 <td>${escapeHtml(todo.description) || '-'}</td>
+                <td>${todo.tags && todo.tags.length ? escapeHtml(todo.tags.join(', ')) : '-'}</td>
             </tr>
         `;
     });
@@ -635,6 +912,9 @@ todoForm.addEventListener('submit', async (e) => {
         remind_from: todoForm.remindFrom.value || null,
         email_reminder_enabled: !!todoForm.emailReminder?.checked,
         done: false,
+        tags: todoTagInput.get(),
+        recurrence_rule: todoRecurrence.getRule(),
+        recurrence_weekdays: todoRecurrence.getRule() === 'weekdays' ? todoRecurrence.getWeekdays() : null,
     };
     try {
         const res = await fetch(`${API_URL}/todos`, {
@@ -644,8 +924,11 @@ todoForm.addEventListener('submit', async (e) => {
         });
         if (res.ok) {
             todoForm.reset();
+            todoTagInput.clear();
+            todoRecurrence.reset();
             todoModal.classList.add('hidden');
             fetchTodos();
+            refreshKnownTags();
         }
     } catch (err) {
         console.error('Error creating todo:', err);
@@ -667,9 +950,16 @@ editForm.addEventListener('submit', async (e) => {
                 remind_from: editForm.remindFrom.value || null,
                 email_reminder_enabled: !!editForm.emailReminder?.checked,
                 done: editForm.done.checked,
+                tags: editTagInput.get(),
+                recurrence_rule: editRecurrence.getRule(),
+                recurrence_weekdays: editRecurrence.getRule() === 'weekdays' ? editRecurrence.getWeekdays() : null,
             }),
         });
-        if (res.ok) { editModal.classList.add('hidden'); fetchTodos(); }
+        if (res.ok) {
+            editModal.classList.add('hidden');
+            fetchTodos();
+            refreshKnownTags();
+        }
     } catch (err) {
         console.error('Error updating todo:', err);
     }
@@ -702,6 +992,9 @@ async function toggleTodo(id) {
                 remind_from: todo.remind_from || null,
                 email_reminder_enabled: !!todo.email_reminder_enabled,
                 done: !todo.done,
+                tags: todo.tags || [],
+                recurrence_rule: todo.recurrence_rule || 'none',
+                recurrence_weekdays: todo.recurrence_weekdays || null,
             }),
         });
         if (res.ok) fetchTodos();
@@ -723,6 +1016,8 @@ function openEditModal(id) {
     editForm.done.checked = todo.done;
     editForm.emailReminder.checked = !!todo.email_reminder_enabled;
     editForm.remindFrom.value = todo.remind_from ? toDatetimeLocalValue(todo.remind_from) : '';
+    editTagInput.set(todo.tags || []);
+    editRecurrence.set(todo.recurrence_rule || 'none', todo.recurrence_weekdays || []);
 
     // Business rule (matches the old frontend and the backend's lack of
     // server-side enforcement): a todo can only be deleted once it's done.
@@ -736,6 +1031,17 @@ function openEditModal(id) {
     editForm.done.onchange = updateDeleteBtnState;
 
     editModal.classList.remove('hidden');
+}
+
+function recurrenceLabel(todo) {
+    const rule = todo.recurrence_rule;
+    if (!rule || rule === 'none') return null;
+    if (rule === 'weekdays') {
+        const days = (todo.recurrence_weekdays || []).slice().sort((a, b) => a - b);
+        if (!days.length) return t('recurrence.weekdays');
+        return days.map((d) => t(`weekday.short.${d}`)).join(', ');
+    }
+    return t(`recurrence.${rule}`);
 }
 
 function renderTodos(todos) {
@@ -769,6 +1075,14 @@ function renderTodos(todos) {
         if (todo.remind_from) {
             metaChips.push(`<span class="todo-chip ${statusClass === 'reminder-active' ? 'reminder' : ''}">${escapeHtml(t('form.remindFrom'))}: ${escapeHtml(formatDate(todo.remind_from, true))}</span>`);
         }
+        const recurLabel = recurrenceLabel(todo);
+        if (recurLabel) {
+            metaChips.push(`<span class="todo-chip recurrence">↻ ${escapeHtml(recurLabel)}</span>`);
+        }
+
+        const tagPills = (todo.tags || [])
+            .map((name) => `<span class="todo-tag-pill">${escapeHtml(name)}</span>`)
+            .join('');
 
         li.innerHTML = `
             <input type="checkbox" class="todo-checkbox" ${todo.done ? 'checked' : ''} aria-label="${escapeHtml(t('form.markDone'))}">
@@ -779,6 +1093,7 @@ function renderTodos(todos) {
                 </div>
                 ${todo.description ? `<div class="todo-desc">${escapeHtml(todo.description)}</div>` : ''}
                 ${metaChips.length ? `<div class="todo-meta">${metaChips.join('')}</div>` : ''}
+                ${tagPills ? `<div class="todo-tags">${tagPills}</div>` : ''}
             </div>
         `;
 

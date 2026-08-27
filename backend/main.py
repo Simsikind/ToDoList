@@ -1,20 +1,33 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func, case
 
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date as date_cls
 import secrets
 import importlib
 import logging
 import asyncio
+import calendar
 from zoneinfo import ZoneInfo
 
 from db import Base, engine, config, run_migrations, SessionLocal
-from models import User, Todo
-from schemas import UserCreate, UserLogin, UserOut, TodoCreate, TodoUpdate, TodoOut, UserUpdatePassword, ApiTokenOut
+from models import User, Todo, Tag
+from schemas import (
+    UserCreate,
+    UserLogin,
+    UserOut,
+    TodoCreate,
+    TodoUpdate,
+    TodoOut,
+    UserUpdatePassword,
+    ApiTokenOut,
+    MeOut,
+    AdminUserOut,
+    AdminSetAdminIn,
+)
 from auth import (
     hash_password,
     verify_password,
@@ -28,6 +41,27 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 
 logger = logging.getLogger(__name__)
+
+
+def _is_owner(user: User) -> bool:
+    try:
+        owner_email = config["app"].get("owner_email", "") if config.has_section("app") else ""
+    except Exception:
+        owner_email = ""
+    owner_email = (owner_email or "").strip().lower()
+    return bool(owner_email) and user.email.lower() == owner_email
+
+
+def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not (current_user.is_admin or _is_owner(current_user)):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
+def get_current_owner(current_user: User = Depends(get_current_user)) -> User:
+    if not _is_owner(current_user):
+        raise HTTPException(status_code=403, detail="Owner access required")
+    return current_user
 
 
 def _default_timezone_name() -> str:
@@ -75,6 +109,89 @@ def _utc_naive_to_iso_z(utc_dt: datetime | None) -> str | None:
     return utc_dt.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _weekdays_to_str(weekdays: list[int] | None) -> str | None:
+    if not weekdays:
+        return None
+    return ",".join(str(d) for d in sorted(set(weekdays)) if 1 <= d <= 7)
+
+
+def _weekdays_from_str(raw: str | None) -> list[int] | None:
+    if not raw:
+        return None
+    try:
+        return [int(x) for x in raw.split(",") if x.strip()]
+    except ValueError:
+        return None
+
+
+def _get_or_create_tags(db: Session, user: User, names: list[str]) -> list[Tag]:
+    cleaned = []
+    seen = set()
+    for raw in names or []:
+        name = raw.strip()
+        if not name or name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        cleaned.append(name)
+
+    if not cleaned:
+        return []
+
+    # Match case-insensitively against ALL of the user's existing tags (not just
+    # exact-string IN matches) so "finanzen" reuses an existing "Finanzen" row
+    # instead of creating a near-duplicate.
+    existing = db.query(Tag).filter(Tag.user_id == user.id).all()
+    existing_by_name = {t.name.lower(): t for t in existing}
+
+    result = []
+    for name in cleaned:
+        tag = existing_by_name.get(name.lower())
+        if not tag:
+            tag = Tag(user_id=user.id, name=name)
+            db.add(tag)
+            db.flush()
+            existing_by_name[name.lower()] = tag
+        result.append(tag)
+    return result
+
+
+def _compute_next_occurrence(
+    due_date, remind_from, rule: str, weekdays: list[int] | None
+):
+    """Given the due_date/remind_from of a just-completed recurring todo,
+    compute the next occurrence's due_date/remind_from. remind_from is
+    shifted by the same delta as due_date so its time-of-day offset is kept.
+    """
+    if not due_date:
+        return None, None
+
+    if rule == "daily":
+        next_due = due_date + timedelta(days=1)
+    elif rule == "weekly":
+        next_due = due_date + timedelta(days=7)
+    elif rule == "monthly":
+        year = due_date.year + (due_date.month // 12)
+        month = due_date.month % 12 + 1
+        last_day = calendar.monthrange(year, month)[1]
+        next_due = date_cls(year, month, min(due_date.day, last_day))
+    elif rule == "weekdays" and weekdays:
+        allowed = set(weekdays)
+        next_due = due_date
+        for _ in range(7):
+            next_due = next_due + timedelta(days=1)
+            if next_due.isoweekday() in allowed:
+                break
+    else:
+        return None, None
+
+    next_remind = None
+    if remind_from:
+        delta = next_due - due_date
+        next_remind = remind_from + delta
+
+    return next_due, next_remind
+
+
 def _todo_to_out(todo: Todo) -> TodoOut:
     return TodoOut(
         id=todo.id,
@@ -89,6 +206,10 @@ def _todo_to_out(todo: Todo) -> TodoOut:
         reminder_email_sent_at=todo.reminder_email_sent_at,
         overdue_email_sent_at=todo.overdue_email_sent_at,
         remind_timezone=todo.remind_timezone,
+        tags=[t.name for t in todo.tags],
+        recurrence_rule=todo.recurrence_rule or "none",
+        recurrence_weekdays=_weekdays_from_str(todo.recurrence_weekdays),
+        parent_todo_id=todo.parent_todo_id,
     )
 
 
@@ -379,9 +500,25 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not db_user.is_email_verified:
         raise HTTPException(status_code=403, detail="E-Mail-Adresse noch nicht verifiziert")
 
+    db_user.last_login_at = datetime.utcnow()
+    db.commit()
+
     token = create_access_token({"sub": db_user.email})
 
     return {"access_token": token, "token_type": "bearer"}
+
+
+@app.get("/api/me", response_model=MeOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    owner = _is_owner(current_user)
+    return MeOut(
+        id=current_user.id,
+        email=current_user.email,
+        is_email_verified=current_user.is_email_verified,
+        timezone=current_user.timezone,
+        is_admin=current_user.is_admin or owner,
+        is_owner=owner,
+    )
 
 
 @app.get("/api/verify-email", response_class=HTMLResponse)
@@ -484,8 +621,107 @@ def regenerate_api_token(
 
 
 # --------------------------
+# ADMIN ROUTES (admin or owner; management is owner-only)
+# --------------------------
+
+@app.get("/api/admin/users", response_model=list[AdminUserOut])
+def admin_list_users(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    owner_email = ""
+    try:
+        owner_email = (config["app"].get("owner_email", "") if config.has_section("app") else "").strip().lower()
+    except Exception:
+        pass
+
+    rows = (
+        db.query(
+            User.id,
+            User.email,
+            User.is_email_verified,
+            User.created_at,
+            User.last_login_at,
+            User.is_admin,
+            func.coalesce(func.sum(case((Todo.done.is_(True), 1), else_=0)), 0).label("todos_done"),
+            func.coalesce(func.sum(case((Todo.done.is_(False), 1), else_=0)), 0).label("todos_open"),
+        )
+        .outerjoin(Todo, Todo.user_id == User.id)
+        .group_by(User.id)
+        .order_by(User.id)
+        .all()
+    )
+
+    return [
+        AdminUserOut(
+            id=r.id,
+            email=r.email,
+            is_email_verified=r.is_email_verified,
+            created_at=r.created_at,
+            last_login_at=r.last_login_at,
+            todos_open=r.todos_open,
+            todos_done=r.todos_done,
+            is_admin=bool(r.is_admin) or (r.email.lower() == owner_email),
+            is_owner=r.email.lower() == owner_email,
+        )
+        for r in rows
+    ]
+
+
+@app.delete("/api/admin/users/{user_id}/done-todos")
+def admin_delete_done_todos(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    deleted = (
+        db.query(Todo)
+        .filter(Todo.user_id == user_id, Todo.done.is_(True))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": deleted}
+
+
+@app.put("/api/admin/users/{user_id}/admin")
+def admin_set_admin(
+    user_id: int,
+    payload: AdminSetAdminIn,
+    db: Session = Depends(get_db),
+    owner: User = Depends(get_current_owner),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if _is_owner(target):
+        raise HTTPException(status_code=400, detail="Owner status cannot be changed here")
+
+    target.is_admin = payload.is_admin
+    db.commit()
+    return {"id": target.id, "is_admin": target.is_admin}
+
+
+# --------------------------
 # TODO ROUTES (AUTH REQUIRED)
 # --------------------------
+
+@app.get("/api/tags", response_model=list[str])
+def get_tags(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tags = (
+        db.query(Tag)
+        .filter(Tag.user_id == current_user.id)
+        .order_by(Tag.name)
+        .all()
+    )
+    return [t.name for t in tags]
+
 
 @app.get("/api/todos", response_model=list[TodoOut])
 def get_todos(
@@ -523,6 +759,9 @@ def create_todo(
         remind_timezone=remind_tz,
         done=todo.done,
         email_reminder_enabled=todo.email_reminder_enabled,
+        recurrence_rule=todo.recurrence_rule or "none",
+        recurrence_weekdays=_weekdays_to_str(todo.recurrence_weekdays),
+        tags=_get_or_create_tags(db, current_user, todo.tags),
         user_id=current_user.id,
     )
     db.add(new_todo)
@@ -553,7 +792,10 @@ def update_todo(
     if not existing:
         raise HTTPException(status_code=404, detail="Todo not found")
 
+    was_done = existing.done
     data = todo.dict()
+    tag_names = data.pop("tags", [])
+    data["recurrence_weekdays"] = _weekdays_to_str(data.get("recurrence_weekdays"))
 
     # Normalize remind_from to stored UTC and track timezone
     tz_name = _normalize_timezone_name(current_user.timezone)
@@ -576,8 +818,38 @@ def update_todo(
     for field, value in data.items():
         setattr(existing, field, value)
 
+    existing.tags = _get_or_create_tags(db, current_user, tag_names)
+
     db.commit()
     db.refresh(existing)
+
+    # Recurring todo just got completed: spawn the next occurrence.
+    if not was_done and existing.done and (existing.recurrence_rule or "none") != "none":
+        next_due, next_remind = _compute_next_occurrence(
+            existing.due_date,
+            existing.remind_from,
+            existing.recurrence_rule,
+            _weekdays_from_str(existing.recurrence_weekdays),
+        )
+        if next_due:
+            next_todo = Todo(
+                title=existing.title,
+                description=existing.description,
+                priority=existing.priority,
+                due_date=next_due,
+                remind_from=next_remind,
+                remind_timezone=existing.remind_timezone,
+                done=False,
+                email_reminder_enabled=existing.email_reminder_enabled,
+                recurrence_rule=existing.recurrence_rule,
+                recurrence_weekdays=existing.recurrence_weekdays,
+                parent_todo_id=existing.id,
+                user_id=current_user.id,
+                tags=list(existing.tags),
+            )
+            db.add(next_todo)
+            db.commit()
+
     return _todo_to_out(existing)
 
 
@@ -602,5 +874,16 @@ def delete_todo(
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
+
+
+@app.get("/doc", include_in_schema=False)
+def doc_page():
+    return FileResponse(FRONTEND_DIR / "doc.html")
+
+
+@app.get("/admin", include_in_schema=False)
+def admin_page():
+    return FileResponse(FRONTEND_DIR / "admin.html")
+
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
