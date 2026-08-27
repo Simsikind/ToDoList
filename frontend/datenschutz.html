@@ -3,46 +3,75 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Datenschutz – ToDo List</title>
+
+    <script>
+        (function () {
+            try {
+                var p = localStorage.getItem('theme_palette') || 'a';
+                var m = localStorage.getItem('theme_mode') || 'system';
+                var resolved = m === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : m;
+                document.documentElement.setAttribute('data-palette', p);
+                document.documentElement.setAttribute('data-mode', resolved);
+            } catch (e) {}
+        })();
+    </script>
+
+    <title>Datenschutz – ToDoList</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="theme.css" />
     <link rel="stylesheet" href="style.css" />
+    <style>
+        .doc-page { min-height: 100vh; display: flex; justify-content: center; padding: 48px 20px; }
+        .doc-card {
+            width: 100%; max-width: 640px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 36px 32px;
+        }
+        .doc-card h1 { font-size: 1.6rem; margin-bottom: 18px; }
+        .doc-card h2 { font-size: 1.05rem; margin: 24px 0 8px; }
+        .doc-card p, .doc-card li { color: var(--text-muted); font-size: 0.94rem; line-height: 1.6; }
+        .doc-card ul { padding-left: 20px; margin: 0; }
+        .doc-card a { color: var(--accent); }
+        .doc-back { display: inline-block; margin-top: 26px; font-size: 0.9rem; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Datenschutz</h1>
+    <div class="doc-page">
+        <div class="doc-card">
+            <h1>Datenschutz</h1>
 
-        <p>
-            Diese ToDo-App verarbeitet nur die Daten, die für den Betrieb notwendig sind.
-        </p>
+            <p>Diese ToDo-App verarbeitet nur die Daten, die für den Betrieb notwendig sind.</p>
 
-        <h2>Welche Daten werden gespeichert?</h2>
-        <ul>
-            <li><strong>Account:</strong> E-Mail-Adresse, Passwort-Hash, Verifizierungsstatus, Zeitzone, Erstellungszeitpunkt</li>
-            <li><strong>ToDos:</strong> Titel, Beschreibung (optional), Priorität, Fälligkeitsdatum (optional), Reminder-Zeitpunkt (optional) und Status (erledigt/offen)</li>
-            <li><strong>E-Mail-Reminder:</strong> Wenn aktiviert, wird der Versandstatus (z.B. ob Reminder/Overdue-Mail bereits gesendet wurde) gespeichert</li>
-        </ul>
+            <h2>Welche Daten werden gespeichert?</h2>
+            <ul>
+                <li><strong>Account:</strong> E-Mail-Adresse, Passwort-Hash, Verifizierungsstatus, Zeitzone, Erstellungszeitpunkt</li>
+                <li><strong>ToDos:</strong> Titel, Beschreibung (optional), Priorität, Fälligkeitsdatum (optional), Reminder-Zeitpunkt (optional) und Status (erledigt/offen)</li>
+                <li><strong>E-Mail-Reminder:</strong> Wenn aktiviert, wird der Versandstatus (z.B. ob Reminder-/Overdue-Mail bereits gesendet wurde) gespeichert</li>
+            </ul>
 
-        <h2>Wofür werden die Daten verwendet?</h2>
-        <ul>
-            <li>Zur Anmeldung und Verwaltung deines Accounts</li>
-            <li>Zum Speichern und Anzeigen deiner ToDos</li>
-            <li>Optional: Zum Versand von E-Mail-Remindern/Benachrichtigungen für deine ToDos</li>
-        </ul>
+            <h2>Wofür werden die Daten verwendet?</h2>
+            <ul>
+                <li>Zur Anmeldung und Verwaltung deines Accounts</li>
+                <li>Zum Speichern und Anzeigen deiner ToDos</li>
+                <li>Optional: Zum Versand von E-Mail-Remindern/Benachrichtigungen für deine ToDos</li>
+            </ul>
 
-        <h2>E-Mails</h2>
-        <p>
-            Bei der Registrierung wird eine E-Mail zur Verifizierung deiner Adresse versendet. Wenn du E-Mail-Reminder aktivierst,
-            können zusätzlich Reminder- und Overdue-E-Mails verschickt werden.
-        </p>
+            <h2>E-Mails</h2>
+            <p>
+                Bei der Registrierung wird eine E-Mail zur Verifizierung deiner Adresse versendet. Wenn du E-Mail-Reminder aktivierst,
+                können zusätzlich Reminder- und Overdue-E-Mails verschickt werden.
+            </p>
 
-        <h2>Löschung / Auskunft</h2>
-        <p>
-            Wenn du die Löschung deines Accounts und deiner Daten oder eine Auskunft zu den gespeicherten Daten beantragen möchtest,
-            schreibe bitte an <a href="mailto:system@madebysimon.org">system@madebysimon.org</a>.
-        </p>
+            <h2>Löschung / Auskunft</h2>
+            <p>
+                Wenn du die Löschung deines Accounts und deiner Daten oder eine Auskunft zu den gespeicherten Daten beantragen möchtest,
+                schreibe bitte an <a href="mailto:system@madebysimon.org">system@madebysimon.org</a>.
+            </p>
 
-        <p style="margin-top: 20px;">
-            <a href="/">&larr; Zurück zur App</a>
-        </p>
+            <a class="doc-back" href="/">&larr; Zurück zur App</a>
+        </div>
     </div>
 </body>
 </html>

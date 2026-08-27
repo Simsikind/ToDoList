@@ -1,0 +1,94 @@
+/* ==========================================================================
+   Design tokens
+   - Palette-independent base tokens (spacing, radius, shadow, type)
+   - Four selectable palettes ("a"–"d"), each with a light and dark mode
+   - Active combo is set via data-palette / data-mode on <html>
+     (see the inline script at the top of index.html for the no-flash init)
+   ========================================================================== */
+
+:root {
+  --font-ui: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.07);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.14);
+
+  --sidebar-width: 248px;
+  --topbar-height: 60px;
+}
+
+/* ---------- Palette A — Ink & Paper ---------- */
+:root[data-palette="a"][data-mode="light"] {
+  --bg: #F7F7FA; --surface: #FFFFFF; --surface-alt: #EFEFF5;
+  --text: #1B1D28; --text-muted: #6B6E7E; --border: #E1E1E9;
+  --accent: #4338CA; --accent-soft: #E7E4FB; --on-accent: #FFFFFF;
+  --danger: #B8283B; --danger-soft: #FBE3E6;
+  --warning: #96631A; --warning-soft: #FBEDD3;
+  --success: #187C50;
+}
+:root[data-palette="a"][data-mode="dark"] {
+  --bg: #14151C; --surface: #1B1D28; --surface-alt: #101117;
+  --text: #EDEDF2; --text-muted: #9497A8; --border: #2B2D3A;
+  --accent: #8B87F5; --accent-soft: #2A2650; --on-accent: #14151C;
+  --danger: #F2596A; --danger-soft: #3A1E24;
+  --warning: #E7A83C; --warning-soft: #3A2E14;
+  --success: #43C989;
+}
+
+/* ---------- Palette B — Moss Studio ---------- */
+:root[data-palette="b"][data-mode="light"] {
+  --bg: #F6F3EC; --surface: #FBF9F3; --surface-alt: #ECE6D8;
+  --text: #2B2A22; --text-muted: #746E5C; --border: #E0D9C7;
+  --accent: #4F6B4C; --accent-soft: #E1E8DC; --on-accent: #FFFFFF;
+  --danger: #A83B27; --danger-soft: #F3DFD8;
+  --warning: #93691E; --warning-soft: #F1E4C9;
+  --success: #236778;
+}
+:root[data-palette="b"][data-mode="dark"] {
+  --bg: #1C1C16; --surface: #24241C; --surface-alt: #181812;
+  --text: #EDEAE0; --text-muted: #A6A18D; --border: #3A3928;
+  --accent: #8FB37F; --accent-soft: #2B3324; --on-accent: #1C1C16;
+  --danger: #E06A4C; --danger-soft: #3A241C;
+  --warning: #DDA83F; --warning-soft: #3A2F16;
+  --success: #4FA8BA;
+}
+
+/* ---------- Palette C — Harbor ---------- */
+:root[data-palette="c"][data-mode="light"] {
+  --bg: #F2F4F6; --surface: #FFFFFF; --surface-alt: #E4E8EC;
+  --text: #182430; --text-muted: #5C6B79; --border: #D6DCE1;
+  --accent: #A9611E; --accent-soft: #F5E4D0; --on-accent: #FFFFFF;
+  --danger: #B23434; --danger-soft: #F7DEDE;
+  --warning: #8C7118; --warning-soft: #F6EDC9;
+  --success: #256E42;
+}
+:root[data-palette="c"][data-mode="dark"] {
+  --bg: #121A22; --surface: #182430; --surface-alt: #0D141B;
+  --text: #E7EDF2; --text-muted: #8A9AA8; --border: #26313D;
+  --accent: #E2A05C; --accent-soft: #3A2C1B; --on-accent: #121A22;
+  --danger: #EB6161; --danger-soft: #3A1F1F;
+  --warning: #E0BE4E; --warning-soft: #3A331A;
+  --success: #4CBE84;
+}
+
+/* ---------- Palette D — Plum Session ---------- */
+:root[data-palette="d"][data-mode="light"] {
+  --bg: #F7F5F6; --surface: #FFFFFF; --surface-alt: #ECE7EA;
+  --text: #241D24; --text-muted: #6E626E; --border: #DED6DC;
+  --accent: #7A2E62; --accent-soft: #F0DCE9; --on-accent: #FFFFFF;
+  --danger: #A82F2F; --danger-soft: #F5DEDE;
+  --warning: #93691E; --warning-soft: #F1E4C9;
+  --success: #256E42;
+}
+:root[data-palette="d"][data-mode="dark"] {
+  --bg: #18131B; --surface: #221B26; --surface-alt: #120E15;
+  --text: #F0E9EE; --text-muted: #A99AA8; --border: #34293A;
+  --accent: #D97BB0; --accent-soft: #3A2035; --on-accent: #18131B;
+  --danger: #E85F5F; --danger-soft: #3A1F1F;
+  --warning: #DDA83F; --warning-soft: #3A2F16;
+  --success: #4CBE84;
+}

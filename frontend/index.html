@@ -1,265 +1,341 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ToDo List App</title>
+
+    <!-- Set palette/mode before first paint to avoid a flash of the wrong theme -->
+    <script>
+        (function () {
+            try {
+                var p = localStorage.getItem('theme_palette') || 'a';
+                var m = localStorage.getItem('theme_mode') || 'system';
+                var resolved = m === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : m;
+                document.documentElement.setAttribute('data-palette', p);
+                document.documentElement.setAttribute('data-mode', resolved);
+            } catch (e) {}
+        })();
+    </script>
+
+    <title>ToDoList</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✅</text></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+    <link rel="stylesheet" href="theme.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="container">
-        <div class="app-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1 style="margin: 0;">ToDo List</h1>
-            <div id="clock" style="font-size: 1.5em; font-weight: bold; color: #333;"></div>
-        </div>
+    <!-- ============ Auth ============ -->
+    <div id="auth-section" class="auth-screen hidden">
+        <div class="auth-card">
+            <div class="brand">
+                <span class="brand-mark">✅</span>
+                <span class="brand-name">ToDoList</span>
+            </div>
+            <p id="auth-message" class="auth-message"></p>
 
-        <!-- Auth Section -->
-        <div id="auth-section">
-            <p id="auth-message"></p>
-            
-            <!-- Login Form -->
-            <form id="login-form">
-                <h2>Login</h2>
-                <div class="form-group">
-                    <label>Email</label>
+            <form id="login-form" class="auth-form">
+                <h1 data-i18n="auth.loginTitle">Anmelden</h1>
+                <div class="field">
+                    <label data-i18n="auth.email">E-Mail</label>
                     <input type="email" name="username" autocomplete="email" required>
                 </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" name="password" required>
+                <div class="field">
+                    <label data-i18n="auth.password">Passwort</label>
+                    <input type="password" name="password" autocomplete="current-password" required>
                 </div>
-                <button type="submit">Login</button>
-                <p>Don't have an account? <a href="#" id="show-register">Register</a></p>
+                <button type="submit" class="btn btn-primary btn-block" data-i18n="auth.loginBtn">Anmelden</button>
+                <p class="auth-switch">
+                    <span data-i18n="auth.noAccount">Noch kein Konto?</span>
+                    <a href="#" id="show-register" data-i18n="auth.registerLink">Registrieren</a>
+                </p>
             </form>
 
-            <!-- Register Form -->
-            <form id="register-form" class="hidden">
-                <h2>Register</h2>
-                <div class="form-group">
-                    <label>Email</label>
+            <form id="register-form" class="auth-form hidden">
+                <h1 data-i18n="auth.registerTitle">Registrieren</h1>
+                <div class="field">
+                    <label data-i18n="auth.email">E-Mail</label>
                     <input type="email" name="email" autocomplete="email" required>
                 </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" name="password" required>
+                <div class="field">
+                    <label data-i18n="auth.password">Passwort</label>
+                    <input type="password" name="password" autocomplete="new-password" required>
                 </div>
-                <button type="submit">Register</button>
-                <p>Already have an account? <a href="#" id="show-login">Login</a></p>
+                <button type="submit" class="btn btn-primary btn-block" data-i18n="auth.registerBtn">Registrieren</button>
+                <p class="auth-switch">
+                    <span data-i18n="auth.haveAccount">Schon ein Konto?</span>
+                    <a href="#" id="show-login" data-i18n="auth.loginLink">Anmelden</a>
+                </p>
             </form>
-        </div>
 
-        <!-- App Section -->
-        <div id="app-section" class="hidden">
-            <!-- Alerts Section -->
-            <div id="alerts-section" class="hidden" style="margin-bottom: 20px;">
-                <div style="background-color: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeeba; border-radius: 5px;">
-                    <h3 style="margin-top: 0; margin-bottom: 10px; color: #856404;">⚠️ Attention Needed</h3>
-                    <ul id="alerts-list" style="margin: 0; padding-left: 20px;"></ul>
-                </div>
-            </div>
-
-            <div class="app-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>My Todos</h2>
-                <div class="app-toolbar-actions">
-                    <button id="open-todo-modal">New Task</button>
-                    <button id="change-pw-btn" class="secondary">Change Password</button>
-                    <button id="api-token-btn" class="secondary">API Token</button>
-                    <button id="logout-btn" class="secondary">Logout</button>
-                </div>
-            </div>
-
-            <!-- Modal for New Task -->
-            <div id="todo-modal" class="modal hidden">
-                <div class="modal-content">
-                    <span id="close-modal" class="close">&times;</span>
-                    <h2>Add New Task</h2>
-                    <form id="todo-form">
-                        <div class="form-group">
-                            <label>New Task</label>
-                            <input type="text" name="title" placeholder="What needs to be done? (Max 50 chars)" maxlength="50" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Description</label>
-                            <textarea name="description" placeholder="Optional details... (Max 200 chars)" maxlength="200" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; resize: vertical;"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Priority (0-2)</label>
-                            <input type="number" name="priority" value="0" min="0" max="2">
-                        </div>
-                        <div class="form-group">
-                            <label>Due Date</label>
-                            <input type="date" name="dueDate">
-                        </div>
-                        <div class="form-group">
-                            <label>Remind From</label>
-                            <input type="datetime-local" name="remindFrom">
-                        </div>
-                        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="emailReminder" id="email-reminder" style="width: auto;">
-                            <label for="email-reminder" style="margin: 0;">E-Mail Reminder</label>
-                        </div>
-                        <button type="submit">Add Todo</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Modal for Edit Task -->
-            <div id="edit-modal" class="modal hidden">
-                <div class="modal-content">
-                    <span id="close-edit-modal" class="close">&times;</span>
-                    <h2>Edit Task</h2>
-                    <form id="edit-form">
-                        <input type="hidden" name="id">
-                        <div class="form-group">
-                            <label>Task Title</label>
-                            <input type="text" name="title" placeholder="Task title (Max 50 chars)" maxlength="50" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Description</label>
-                            <textarea name="description" placeholder="Description (Max 200 chars)" maxlength="200" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; resize: vertical;"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Priority (0-2)</label>
-                            <input type="number" name="priority" min="0" max="2">
-                        </div>
-                        <div class="form-group">
-                            <label>Due Date</label>
-                            <input type="date" name="dueDate">
-                        </div>
-                        <div class="form-group">
-                            <label>Remind From</label>
-                            <input type="datetime-local" name="remindFrom">
-                        </div>
-                        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="emailReminder" id="edit-email-reminder" style="width: auto;">
-                            <label for="edit-email-reminder" style="margin: 0;">E-Mail Reminder</label>
-                        </div>
-                        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="done" id="edit-done" style="width: auto;">
-                            <label for="edit-done" style="margin: 0;">Mark as Done</label>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-                            <button type="submit">Save Changes</button>
-                            <button type="button" id="delete-todo-btn" class="danger">Delete</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Filter Section -->
-            <div style="background: #fff; padding: 15px; border: 1px solid #eee; border-radius: 5px; margin-bottom: 20px;">
-                <h3>Filters</h3>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label>Status</label>
-                        <select id="filter-status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="all">All</option>
-                            <option value="active">Active (Not Done)</option>
-                            <option value="done">Completed</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label>Priority</label>
-                        <select id="filter-priority" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="all">All</option>
-                            <option value="2">High (2)</option>
-                            <option value="1">Medium (1)</option>
-                            <option value="0">Low (0)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label>Due Date From</label>
-                        <input type="date" id="filter-date-from">
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label>Due Date To</label>
-                        <input type="date" id="filter-date-to">
-                    </div>
-                    <div class="form-group" style="flex: 1; min-width: 150px;">
-                        <label>Sort By</label>
-                        <select id="sort-by" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="created">Created (Default)</option>
-                            <option value="priority">Priority (High to Low)</option>
-                            <option value="dueDate">Due Date (Earliest first)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="display: flex; align-items: flex-end; gap: 5px;">
-                        <button id="clear-filters" class="secondary">Clear</button>
-                        <select id="export-format" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 41px; cursor: pointer;">
-                            <option value="html">HTML</option>
-                            <option value="pos">POS (Txt)</option>
-                        </select>
-                        <button id="download-todos" style="background-color: #007bff;">Export</button>
-                    </div>
-                </div>
-            </div>
-
-            <ul id="todo-list">
-                <!-- Todos will be inserted here -->
-            </ul>
-        </div>
-
-        <div class="footer-links" style="margin-top: 18px; font-size: 0.95em;">
-            <a href="datenschutz.html">Datenschutz</a>
+            <a class="auth-privacy-link" href="datenschutz.html" data-i18n="footer.privacy">Datenschutz</a>
         </div>
     </div>
 
-    <!-- Change Password Modal -->
-    <div id="change-pw-modal" class="modal hidden">
+    <!-- ============ App shell ============ -->
+    <div id="app-shell" class="app-shell hidden">
+        <header class="topbar">
+            <button id="sidebar-toggle" class="icon-btn sidebar-toggle" type="button" aria-label="Menu">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5.5H17M3 10H17M3 14.5H17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+            <div class="brand">
+                <span class="brand-mark">✅</span>
+                <span class="brand-name">ToDoList</span>
+            </div>
+            <div class="topbar-spacer"></div>
+            <div id="clock" class="clock"></div>
+            <button id="open-todo-modal" class="btn btn-primary">
+                <span aria-hidden="true">+</span> <span data-i18n="app.newTask">Neue Aufgabe</span>
+            </button>
+            <button id="open-settings-btn" class="icon-btn" type="button" data-i18n-aria-label="app.settings" aria-label="Einstellungen">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" stroke="currentColor" stroke-width="1.5"/><path d="M16.2 12.4a1.3 1.3 0 0 0 .26 1.44l.05.05a1.6 1.6 0 1 1-2.26 2.26l-.05-.05a1.3 1.3 0 0 0-1.44-.26 1.3 1.3 0 0 0-.8 1.19v.14a1.6 1.6 0 1 1-3.2 0v-.07a1.3 1.3 0 0 0-.85-1.19 1.3 1.3 0 0 0-1.44.26l-.05.05a1.6 1.6 0 1 1-2.26-2.26l.05-.05a1.3 1.3 0 0 0 .26-1.44 1.3 1.3 0 0 0-1.19-.8h-.14a1.6 1.6 0 1 1 0-3.2h.07a1.3 1.3 0 0 0 1.19-.85 1.3 1.3 0 0 0-.26-1.44l-.05-.05A1.6 1.6 0 1 1 6.3 3.64l.05.05a1.3 1.3 0 0 0 1.44.26h.06a1.3 1.3 0 0 0 .79-1.19v-.14a1.6 1.6 0 1 1 3.2 0v.07a1.3 1.3 0 0 0 .8 1.19 1.3 1.3 0 0 0 1.44-.26l.05-.05a1.6 1.6 0 1 1 2.26 2.26l-.05.05a1.3 1.3 0 0 0-.26 1.44v.06a1.3 1.3 0 0 0 1.19.79h.14a1.6 1.6 0 1 1 0 3.2h-.07a1.3 1.3 0 0 0-1.19.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </button>
+        </header>
+
+        <div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-search">
+                <input type="search" id="search-input" data-i18n-placeholder="app.search" placeholder="Aufgaben durchsuchen…">
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-label" data-i18n="nav.status">Status</div>
+                <div class="chip-group" id="filter-status">
+                    <button type="button" class="chip active" data-value="all" data-i18n="nav.all">Alle</button>
+                    <button type="button" class="chip" data-value="active" data-i18n="nav.active">Aktiv</button>
+                    <button type="button" class="chip" data-value="done" data-i18n="nav.done">Erledigt</button>
+                </div>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-label" data-i18n="nav.priority">Priorität</div>
+                <div class="chip-group" id="filter-priority">
+                    <button type="button" class="chip active" data-value="all" data-i18n="nav.priority.all">Alle</button>
+                    <button type="button" class="chip chip-danger" data-value="2" data-i18n="nav.priority.high">Hoch</button>
+                    <button type="button" class="chip chip-warning" data-value="1" data-i18n="nav.priority.medium">Mittel</button>
+                    <button type="button" class="chip chip-success" data-value="0" data-i18n="nav.priority.low">Niedrig</button>
+                </div>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-label" data-i18n="nav.dueRange">Fälligkeitszeitraum</div>
+                <div class="field field-compact">
+                    <label data-i18n="nav.dueFrom">Von</label>
+                    <input type="date" id="filter-date-from">
+                </div>
+                <div class="field field-compact">
+                    <label data-i18n="nav.dueTo">Bis</label>
+                    <input type="date" id="filter-date-to">
+                </div>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-label" data-i18n="nav.sortBy">Sortieren nach</div>
+                <select id="sort-by" class="select">
+                    <option value="created" data-i18n="sort.created">Erstellt</option>
+                    <option value="priority" data-i18n="sort.priority">Priorität (hoch → niedrig)</option>
+                    <option value="dueDate" data-i18n="sort.dueDate">Fälligkeit (früheste zuerst)</option>
+                </select>
+            </div>
+
+            <button id="clear-filters" class="btn btn-ghost btn-block" data-i18n="nav.clearFilters">Filter zurücksetzen</button>
+
+            <div class="sidebar-group sidebar-export">
+                <div class="sidebar-label" data-i18n="nav.export">Export</div>
+                <div class="sidebar-row">
+                    <select id="export-format" class="select">
+                        <option value="html" data-i18n="export.html">HTML</option>
+                        <option value="pos" data-i18n="export.pos">Bon (Text)</option>
+                    </select>
+                    <button id="download-todos" class="btn btn-secondary" data-i18n="export.go">Exportieren</button>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="datenschutz.html" data-i18n="footer.privacy">Datenschutz</a>
+            </div>
+        </nav>
+
+        <main class="main">
+            <div id="alerts-section" class="alerts hidden">
+                <div class="alerts-card">
+                    <h2 data-i18n="alerts.title">⚠️ Achtung nötig</h2>
+                    <ul id="alerts-list"></ul>
+                </div>
+            </div>
+
+            <ul id="todo-list" class="todo-list"></ul>
+
+            <div id="empty-state" class="empty-state hidden">
+                <p class="empty-title" data-i18n="empty.title">Keine Aufgaben</p>
+                <p class="empty-body" data-i18n="empty.body">Für die aktuellen Filter gibt es nichts zu zeigen.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- ============ New Task modal ============ -->
+    <div id="todo-modal" class="modal hidden">
         <div class="modal-content">
-            <span id="close-pw-modal" class="close">&times;</span>
-            <h2>Change Password</h2>
-            <form id="change-pw-form">
-                <div class="form-group">
-                    <label>Old Password</label>
-                    <input type="password" name="oldPassword" required>
+            <button type="button" class="close" id="close-modal" aria-label="Close">&times;</button>
+            <h2 data-i18n="modal.newTask">Neue Aufgabe</h2>
+            <form id="todo-form">
+                <div class="field">
+                    <label data-i18n="form.title">Titel</label>
+                    <input type="text" name="title" data-i18n-placeholder="form.titlePlaceholder" placeholder="Was ist zu tun? (max. 50 Zeichen)" maxlength="50" required>
                 </div>
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" name="newPassword" required>
+                <div class="field">
+                    <label data-i18n="form.description">Beschreibung</label>
+                    <textarea name="description" data-i18n-placeholder="form.descPlaceholder" placeholder="Optionale Details… (max. 200 Zeichen)" maxlength="200"></textarea>
                 </div>
-                <button type="submit">Update Password</button>
+                <div class="field-row">
+                    <div class="field">
+                        <label data-i18n="form.priority">Priorität (0–2)</label>
+                        <input type="number" name="priority" value="0" min="0" max="2">
+                    </div>
+                    <div class="field">
+                        <label data-i18n="form.dueDate">Fälligkeitsdatum</label>
+                        <input type="date" name="dueDate">
+                    </div>
+                </div>
+                <div class="field">
+                    <label data-i18n="form.remindFrom">Erinnern ab</label>
+                    <input type="datetime-local" name="remindFrom">
+                </div>
+                <label class="checkbox-row">
+                    <input type="checkbox" name="emailReminder">
+                    <span data-i18n="form.emailReminder">E-Mail-Erinnerung</span>
+                </label>
+                <button type="submit" class="btn btn-primary btn-block" data-i18n="form.addTodo">Aufgabe hinzufügen</button>
             </form>
         </div>
     </div>
 
-    <!-- API Token Modal -->
-    <div id="api-token-modal" class="modal hidden">
+    <!-- ============ Edit Task modal ============ -->
+    <div id="edit-modal" class="modal hidden">
         <div class="modal-content">
-            <span id="close-api-token-modal" class="close">&times;</span>
-            <h2>API Token</h2>
-            <p style="color: #555; font-size: 0.95em;">
-                Mit diesem Token kannst du externe Dienste (z.B. Claude MCP) mit deinem Account verbinden.
-                Behandle es wie ein Passwort.
-            </p>
-            <div class="form-group">
-                <label>Dein API Token</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="password" id="api-token-value" readonly
-                        style="flex: 1; font-family: monospace; background: #f5f5f5;">
-                    <button type="button" id="toggle-token-visibility" class="secondary" style="white-space: nowrap;">Anzeigen</button>
-                    <button type="button" id="copy-token-btn" class="secondary" style="white-space: nowrap;">Kopieren</button>
+            <button type="button" class="close" id="close-edit-modal" aria-label="Close">&times;</button>
+            <h2 data-i18n="modal.editTask">Aufgabe bearbeiten</h2>
+            <form id="edit-form">
+                <input type="hidden" name="id">
+                <div class="field">
+                    <label data-i18n="form.title">Titel</label>
+                    <input type="text" name="title" maxlength="50" required>
                 </div>
-            </div>
-            <div class="form-group" style="margin-top: 16px;">
-                <label>MCP Server URL (für claude.ai)</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="mcp-url-value" readonly
-                        style="flex: 1; font-family: monospace; font-size: 0.85em; background: #f5f5f5;">
-                    <button type="button" id="copy-mcp-url-btn" class="secondary" style="white-space: nowrap;">Kopieren</button>
+                <div class="field">
+                    <label data-i18n="form.description">Beschreibung</label>
+                    <textarea name="description" maxlength="200"></textarea>
                 </div>
-            </div>
-            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 16px;">
-                <button type="button" id="regenerate-token-btn" class="danger">Neuen Token generieren</button>
-                <small style="display: block; margin-top: 8px; color: #888;">
-                    Bisherige Verbindungen werden dadurch ungültig.
-                </small>
-            </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label data-i18n="form.priority">Priorität (0–2)</label>
+                        <input type="number" name="priority" min="0" max="2">
+                    </div>
+                    <div class="field">
+                        <label data-i18n="form.dueDate">Fälligkeitsdatum</label>
+                        <input type="date" name="dueDate">
+                    </div>
+                </div>
+                <div class="field">
+                    <label data-i18n="form.remindFrom">Erinnern ab</label>
+                    <input type="datetime-local" name="remindFrom">
+                </div>
+                <label class="checkbox-row">
+                    <input type="checkbox" name="emailReminder">
+                    <span data-i18n="form.emailReminder">E-Mail-Erinnerung</span>
+                </label>
+                <label class="checkbox-row">
+                    <input type="checkbox" name="done">
+                    <span data-i18n="form.markDone">Als erledigt markieren</span>
+                </label>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary" data-i18n="form.saveChanges">Änderungen speichern</button>
+                    <button type="button" id="delete-todo-btn" class="btn btn-danger" data-i18n="form.delete">Löschen</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <script src="app.js?v=8"></script>
+    <!-- ============ Settings modal ============ -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <button type="button" class="close" id="close-settings-modal" aria-label="Close">&times;</button>
+            <h2 data-i18n="settings.title">Einstellungen</h2>
+
+            <section class="settings-section">
+                <h3 data-i18n="settings.appearance">Erscheinungsbild</h3>
+                <div class="settings-row">
+                    <span class="settings-row-label" data-i18n="settings.theme">Farbschema</span>
+                    <div class="swatch-group" id="theme-swatches">
+                        <button type="button" class="swatch-btn" data-palette="a" style="--sw: #4338CA" title="Ink & Paper"></button>
+                        <button type="button" class="swatch-btn" data-palette="b" style="--sw: #4F6B4C" title="Moss Studio"></button>
+                        <button type="button" class="swatch-btn" data-palette="c" style="--sw: #A9611E" title="Harbor"></button>
+                        <button type="button" class="swatch-btn" data-palette="d" style="--sw: #7A2E62" title="Plum Session"></button>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-row-label" data-i18n="settings.mode">Modus</span>
+                    <div class="chip-group" id="mode-switch">
+                        <button type="button" class="chip" data-value="light" data-i18n="mode.light">Hell</button>
+                        <button type="button" class="chip" data-value="dark" data-i18n="mode.dark">Dunkel</button>
+                        <button type="button" class="chip" data-value="system" data-i18n="mode.system">System</button>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-row-label" data-i18n="settings.language">Sprache</span>
+                    <div class="chip-group" id="lang-switch">
+                        <button type="button" class="chip" data-value="de">Deutsch</button>
+                        <button type="button" class="chip" data-value="en">English</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h3 data-i18n="settings.account">Konto</h3>
+                <form id="change-pw-form">
+                    <div class="field">
+                        <label data-i18n="settings.oldPassword">Aktuelles Passwort</label>
+                        <input type="password" name="oldPassword" autocomplete="current-password" required>
+                    </div>
+                    <div class="field">
+                        <label data-i18n="settings.newPassword">Neues Passwort</label>
+                        <input type="password" name="newPassword" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary" data-i18n="settings.updatePassword">Passwort aktualisieren</button>
+                </form>
+            </section>
+
+            <section class="settings-section">
+                <h3 data-i18n="settings.apiAccess">API-Zugriff</h3>
+                <p class="settings-hint" data-i18n="settings.apiAccessHint">Mit diesem Token kannst du externe Dienste (z.B. Claude MCP) mit deinem Konto verbinden. Behandle es wie ein Passwort.</p>
+                <div class="field">
+                    <label data-i18n="settings.apiToken">Dein API-Token</label>
+                    <div class="input-with-actions">
+                        <input type="password" id="api-token-value" readonly>
+                        <button type="button" id="toggle-token-visibility" class="btn btn-secondary" data-i18n="settings.show">Anzeigen</button>
+                        <button type="button" id="copy-token-btn" class="btn btn-secondary" data-i18n="settings.copy">Kopieren</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label data-i18n="settings.mcpUrl">MCP-Server-URL (für claude.ai)</label>
+                    <div class="input-with-actions">
+                        <input type="text" id="mcp-url-value" readonly class="mono">
+                        <button type="button" id="copy-mcp-url-btn" class="btn btn-secondary" data-i18n="settings.copy">Kopieren</button>
+                    </div>
+                </div>
+                <button type="button" id="regenerate-token-btn" class="btn btn-danger" data-i18n="settings.regenerateToken">Neuen Token generieren</button>
+                <small class="settings-hint" data-i18n="settings.regenerateWarning">Bisherige Verbindungen werden dadurch ungültig.</small>
+            </section>
+
+            <button type="button" id="logout-btn" class="btn btn-ghost btn-block" data-i18n="settings.logout">Abmelden</button>
+        </div>
+    </div>
+
+    <script type="module" src="app.js?v=1"></script>
 </body>
 </html>
